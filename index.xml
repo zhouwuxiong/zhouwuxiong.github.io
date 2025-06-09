@@ -22,5 +22,12 @@
       <description>&lt;h1 id=&#34;helloworld&#34;&gt;HelloWorld&lt;/h1&gt;
 &lt;h2 id=&#34;test&#34;&gt;test&lt;/h2&gt;</description>
     </item>
+    <item>
+      <title>HelloWorld</title>
+      <link>https://zhouwuxiong.github.io/posts/test/</link>
+      <pubDate>Mon, 09 Jun 2025 17:58:43 +0800</pubDate>
+      <guid>https://zhouwuxiong.github.io/posts/test/</guid>
+      <description>&lt;h1 id=&#34;123213s&#34;&gt;123213s&lt;/h1&gt;</description>
+    </item>
   </channel>
 </rss>
