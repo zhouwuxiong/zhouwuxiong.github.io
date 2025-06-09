@@ -12,15 +12,13 @@
     <generator>Hugo -- 0.146.0</generator>
     <language>en</language>
     <copyright>PaperMod Contributors</copyright>
-    <lastBuildDate>Mon, 09 Jun 2025 17:58:43 +0800</lastBuildDate>
     <atom:link href="https://zhouwuxiong.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>HelloWorld</title>
       <link>https://zhouwuxiong.github.io/posts/helloworld/</link>
-      <pubDate>Mon, 09 Jun 2025 17:58:43 +0800</pubDate>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>https://zhouwuxiong.github.io/posts/helloworld/</guid>
-      <description>&lt;h1 id=&#34;helloworld&#34;&gt;HelloWorld&lt;/h1&gt;
-&lt;h2 id=&#34;test&#34;&gt;test&lt;/h2&gt;</description>
+      <description>&lt;h1 id=&#34;121123132&#34;&gt;121123132&lt;/h1&gt;</description>
     </item>
   </channel>
 </rss>
