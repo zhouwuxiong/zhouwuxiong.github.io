@@ -16,34 +16,10 @@
     <atom:link href="https://zhouwuxiong.github.io/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>HelloWorld</title>
-      <link>https://zhouwuxiong.github.io/posts/helloworld/</link>
+      <link>https://zhouwuxiong.github.io/posts/03-projects/03-workflow/02-daliy/helloworld/</link>
       <pubDate>Fri, 02 Feb 2024 04:14:54 -0800</pubDate>
-      <guid>https://zhouwuxiong.github.io/posts/helloworld/</guid>
-      <description>&lt;h1 id=&#34;流程-124141&#34;&gt;流程 124141&lt;/h1&gt;
-&lt;ol&gt;
-&lt;li&gt;obsidian 安装  &lt;code&gt;Enveloppe&lt;/code&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h2 id=&#34;1-hugo-静态网站模板生称工具&#34;&gt;1 hugo (静态网站模板生称工具)&lt;/h2&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-sh&#34; data-lang=&#34;sh&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sudo snap install hugo
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# disable automatic updates&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sudo snap refresh --hold hugo
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;hugo new site quickstart 
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;hugo version
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;2-obsidian-安装--enveloppe&#34;&gt;2 obsidian 安装  Enveloppe&lt;/h2&gt;
-&lt;h2 id=&#34;3-enveloppe-配置&#34;&gt;3 Enveloppe 配置&lt;/h2&gt;
-&lt;p&gt;复制 json 文件导入
-&lt;a href=&#34;https://github.com/miaogaolin/obsidian-github-publisher-hugo/blob/main/settings.json&#34;&gt;obsidian-github-publisher-hugo/settings.json at main · miaogaolin/obsidian-github-publisher-hugo · GitHub&lt;/a&gt;&lt;/p&gt;
-&lt;h3 id=&#34;31-enveloppe-配置github&#34;&gt;3.1 Enveloppe 配置github&lt;/h3&gt;
-&lt;p&gt;![[2-obsidian blog publish.png|2-obsidian blog publish.png]]&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;fork 网站模板&lt;/li&gt;
-&lt;li&gt;获取 github token
-![[1-obsidian blog publish.png|1-obsidian blog publish.png]]&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h3 id=&#34;32-目录配置&#34;&gt;3.2 目录配置&lt;/h3&gt;
-&lt;p&gt;![[3-obsidian blog publish.png|3-obsidian blog publish.png]]&lt;/p&gt;</description>
+      <guid>https://zhouwuxiong.github.io/posts/03-projects/03-workflow/02-daliy/helloworld/</guid>
+      <description>&lt;h2 id=&#34;1-link-test&#34;&gt;1 link test&lt;/h2&gt;</description>
     </item>
     <item>
       <title>HelloWorld</title>
