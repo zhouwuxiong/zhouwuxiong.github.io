@@ -2,9 +2,9 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://zhouwuxiong.github.io/posts/12/</loc>
-  </url><url>
     <loc>https://zhouwuxiong.github.io/categories/</loc>
+  </url><url>
+    <loc>https://zhouwuxiong.github.io/posts/hello/</loc>
   </url><url>
     <loc>https://zhouwuxiong.github.io/</loc>
     <xhtml:link

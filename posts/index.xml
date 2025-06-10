@@ -14,11 +14,11 @@
     <copyright>PaperMod Contributors</copyright>
     <atom:link href="https://zhouwuxiong.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title></title>
-      <link>https://zhouwuxiong.github.io/posts/12/</link>
+      <title>hello world</title>
+      <link>https://zhouwuxiong.github.io/posts/hello/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>https://zhouwuxiong.github.io/posts/12/</guid>
-      <description></description>
+      <guid>https://zhouwuxiong.github.io/posts/hello/</guid>
+      <description>&lt;h1 id=&#34;test&#34;&gt;test&lt;/h1&gt;</description>
     </item>
   </channel>
 </rss>
