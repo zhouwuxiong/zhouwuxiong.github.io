@@ -32,6 +32,7 @@
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;hugo version
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;2-obsidian-安装--enveloppe&#34;&gt;2 obsidian 安装  Enveloppe&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&#34;https://zhouwuxiong.github.io/posts/link-test/&#34;&gt;link test&lt;/a&gt;&lt;/p&gt;
 &lt;h2 id=&#34;3-enveloppe-配置&#34;&gt;3 Enveloppe 配置&lt;/h2&gt;
 &lt;p&gt;复制 json 文件导入
 &lt;a href=&#34;https://github.com/miaogaolin/obsidian-github-publisher-hugo/blob/main/settings.json&#34;&gt;obsidian-github-publisher-hugo/settings.json at main · miaogaolin/obsidian-github-publisher-hugo · GitHub&lt;/a&gt;&lt;/p&gt;
@@ -46,6 +47,13 @@
 &lt;p&gt;&lt;img alt=&#34;3-obsidian blog publish.png&#34; loading=&#34;lazy&#34; src=&#34;https://zhouwuxiong.github.io/static/images/3-obsidian%20blog%20publish.png&#34;&gt;&lt;/p&gt;
 &lt;h2 id=&#34;4-vecel-部署&#34;&gt;4 vecel 部署&lt;/h2&gt;
 &lt;p&gt;&lt;img alt=&#34;4-obsidian blog publish.png&#34; loading=&#34;lazy&#34; src=&#34;https://zhouwuxiong.github.io/static/images/4-obsidian%20blog%20publish.png&#34;&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>link test</title>
+      <link>https://zhouwuxiong.github.io/posts/link-test/</link>
+      <pubDate>Fri, 02 Feb 2024 04:14:54 -0800</pubDate>
+      <guid>https://zhouwuxiong.github.io/posts/link-test/</guid>
+      <description></description>
     </item>
   </channel>
 </rss>
