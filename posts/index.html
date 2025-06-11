@@ -8,7 +8,7 @@
 <title>Posts | PaperMod</title>
 <meta name="keywords" content="">
 <meta name="description" content="Posts - PaperMod">
-<meta name="author" content="Theme PaperMod">
+<meta name="author" content="">
 <link rel="canonical" href="https://zhouwuxiong.github.io/posts/">
 <link crossorigin="anonymous" href="/assets/css/stylesheet.2211ca3164be7830024f6aad2b3a2e520843a64f8f048445c3401c1249aa051d.css" integrity="sha256-IhHKMWS&#43;eDACT2qtKzouUghDpk&#43;PBIRFw0AcEkmqBR0=" rel="preload stylesheet" as="style">
 <link rel="icon" href="https://zhouwuxiong.github.io/favicon.ico">
@@ -56,17 +56,33 @@
         }
 
     </style>
-</noscript><meta property="og:url" content="https://zhouwuxiong.github.io/posts/">
+</noscript>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.css" integrity="sha384-MlJdn/WNKDGXveldHDdyRP1R4CTHr3FeuDNfhsLPYrq2t0UBkUdK2jyTnXPEK1NQ" crossorigin="anonymous">
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.js" integrity="sha384-VQ8d8WVFw0yHhCk5E8I86oOhv48xLpnDZx5T9GogA/Y84DcCKWXDmSDfn13bzFZY" crossorigin="anonymous"></script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/contrib/auto-render.min.js" integrity="sha384-+XBljXPPiv+OzfbB3cVmLHf4hdUFHlWNZN5spNQ7rmHTXpd7WvJum6fIACpNNfIR" crossorigin="anonymous"
+    onload="renderMathInElement(document.body);"></script>
+
+>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+        delimiters: [
+            {left: "$$", right: "$$", display: true},
+            {left: "$", right: "$", display: false}
+        ]
+    });
+});
+</script>
+<meta property="og:url" content="https://zhouwuxiong.github.io/posts/">
   <meta property="og:site_name" content="PaperMod">
   <meta property="og:title" content="Posts">
-  <meta property="og:description" content="Theme PaperMod - https://github.com/adityatelange/hugo-PaperMod">
   <meta property="og:locale" content="en">
   <meta property="og:type" content="website">
-      <meta property="og:image" content="https://zhouwuxiong.github.io/images/papermod-cover.png">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://zhouwuxiong.github.io/images/papermod-cover.png">
+<meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Posts">
-<meta name="twitter:description" content="Theme PaperMod - https://github.com/adityatelange/hugo-PaperMod">
+<meta name="twitter:description" content="">
 
 
 <script type="application/ld+json">
@@ -125,7 +141,7 @@
                 <ul class="lang-switch"><li>|</li>
                     <li>
                         <a href="https://zhouwuxiong.github.io/fr/" title="French"
-                            aria-label=":fr:">🇫🇷</a>
+                            aria-label=":fr:">Fr</a>
                     </li>
                     <li>
                         <a href="https://zhouwuxiong.github.io/fa/" title="Fa"
@@ -165,34 +181,11 @@
     </nav>
 </header>
 <main class="main"> 
-<header class="page-header"><div class="breadcrumbs"><a href="https://zhouwuxiong.github.io/">Home</a></div>
+<header class="page-header">
   <h1>
     Posts
-    <a href="/posts/index.xml" title="RSS" aria-label="RSS">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round" height="23">
-        <path d="M4 11a9 9 0 0 1 9 9" />
-        <path d="M4 4a16 16 0 0 1 16 16" />
-        <circle cx="5" cy="19" r="1" />
-      </svg>
-    </a>
   </h1>
 </header>
-
-<article class="post-entry"> 
-  <header class="entry-header">
-    <h2 class="entry-hint-parent">SLAM 基础
-    </h2>
-  </header>
-  <div class="entry-content">
-    <p>1 常见符号表示 2 SO(3)上的BCH近似公式 BCH公式给出了李代数上的小量加法与李群上小量乘法之间的关系（李代数加法 ⇔ 李群乘法），其线性近似公式广泛应用于各种函数的线性化。 在SO(3)中，某个旋转 $R$ 对应的李代数为 $\phi$，左乘一个微小旋转，记作 $\Delta{R}$，对应的李代数为 $\Delta\phi$，那么在李群上得到的结果就是 $\Delta RR$，而在李代数上，根据BCH近似，为 $J_l({\phi})^{-1}\Delta{\phi} &#43;{\phi}$ 合并后可以简单写成： $$\Delta{R}{R} = \exp(\Delta{\phi}^{\wedge})\exp({\phi}^{\wedge}) = \exp \left(({\phi} &#43; {J}_l({\phi})^{-1}\Delta{\phi})^{\wedge} \right)$$ 反过来，如果在李代数上进行加法，让一个 ${\phi}$加上小量 $\Delta{\phi}$，那么可以近似为李群上带左右雅克比矩阵的乘法： $$\exp(({\phi} &#43; \Delta{\phi})^{\wedge}) = \exp(({J}_l({\phi})\Delta{\phi})^\wedge) \exp({\phi}^\wedge)= \exp({\phi}^\wedge) \exp(({J}_r({\phi})\Delta{\phi})^\wedge) $$ 其中SO(3)的左雅克比矩阵为 $$\begin{aligned} {J}_l(\theta{a}) &amp;= \frac{\sin\theta}{\theta}{I} &#43; (1-\frac{\sin\theta}{\theta}){a}{a}^T&#43;(\frac{1-\cos\theta}{\theta}){a}^{\wedge} \{J}^{-1}_l(\theta{a}) &amp;= \frac{\theta}{2}\cot\frac{\theta}{2}{I} &#43; (1-\frac{\theta}{2}\cot\frac{\theta}{2}){a}{a}^T-\frac{\theta}{2}{a}^{\wedge} \end{aligned}$$ 而SO(3)的右雅克比矩阵为 $$ {J}_r({\phi}) = {J}_l(-{\phi}) $$
-3 KF、EKF、ESKF KF 的状态和观测方程的递推是高斯分布的线性变换，融合结果则是两个高斯分布相乘得到一个新的高斯分布，卡尔曼增益则是系数 Site Unreachable
-KF、EKF、ESKF 的本质都是对高斯分布的线性变换。他们的区别在于高斯线性变换时的系数不同，KF 的线性系数是常数，EKF的线性系数是雅可比矩阵 KF 假设运动方程为: $$ x_{k&#43;1} = Ax_k &#43; u_k &#43; w_k, w \sim (\mu,\sigma^2) $$ 由于该公式为线性变换，所以$x_{K&#43;1}$ 也服从高斯分布。 $$ x_{k&#43;1} \sim (A\mu &#43; u_k ,A \sigma^2 A^T) $$ EKF 假设运动方程为: $$ x_{k&#43;1} = f(x_k) &#43; u_k &#43; w_k, w \sim (\mu,\sigma^2) $$ 其中$f(x)$ 表示非线性变换，将其在$x_k$进行一阶泰勒展开： $$ f(x) = f(x_k) &#43; J(x-x_k) $$ 所以下一时刻的$x_{k&#43;1}$ 的分布为 $$ x_{k&#43;1} \sim (J \mu &#43; u_k, J \sigma^2 J^T) $$ 其与KF 的区别在与 A 是常量，而 J 是与线性化点相关的变量。 ESKF ESKF 与 EKF 类似，只是 EKF 是对整个运动方程进行高斯过程，而 ESKF 只对噪声进行高斯过程，对于测量值（名义变量）则进行直接的递推。最终的结果由测量值的递推和噪声的预测值相加得到。
-...</p>
-  </div>
-  <footer class="entry-footer"><span title='2024-03-05 11:29:23 +0000 UTC'>March 5, 2024</span>&nbsp;·&nbsp;2 min&nbsp;·&nbsp;Theme PaperMod</footer>
-  <a class="entry-link" aria-label="post link to SLAM 基础" href="https://zhouwuxiong.github.io/posts/slam-%E5%9F%BA%E7%A1%80/"></a>
-</article>
 
 <article class="post-entry"> 
   <header class="entry-header">
@@ -204,8 +197,20 @@ KF、EKF、ESKF 的本质都是对高斯分布的线性变换。他们的区别�
 3 Enveloppe 配置 复制 json 文件导入 obsidian-github-publisher-hugo/settings.json at main · miaogaolin/obsidian-github-publisher-hugo · GitHub
 3.1 Enveloppe 配置github fork 网站模板 获取 github token 3.2 目录配置 4 vecel 部署 ...</p>
   </div>
-  <footer class="entry-footer"><span title='2024-02-02 04:14:54 -0800 -0800'>February 2, 2024</span>&nbsp;·&nbsp;1 min&nbsp;·&nbsp;Theme PaperMod</footer>
+  <footer class="entry-footer"><span title='2024-02-02 04:14:54 -0800 -0800'>February 2, 2024</span></footer>
   <a class="entry-link" aria-label="post link to " href="https://zhouwuxiong.github.io/posts/obsidian-blog-publish/"></a>
+</article>
+
+<article class="post-entry"> 
+  <header class="entry-header">
+    <h2 class="entry-hint-parent">link test
+    </h2>
+  </header>
+  <div class="entry-content">
+    <p></p>
+  </div>
+  <footer class="entry-footer"><span title='2024-02-02 04:14:54 -0800 -0800'>February 2, 2024</span></footer>
+  <a class="entry-link" aria-label="post link to link test" href="https://zhouwuxiong.github.io/posts/link-test/"></a>
 </article>
     </main>
     
