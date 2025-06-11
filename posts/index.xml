@@ -14,8 +14,7 @@
       <link>https://zhouwuxiong.github.io/posts/slam-%E4%B8%AD%E7%9A%84%E5%9F%BA%E7%A1%80%E6%95%B0%E5%AD%A6%E7%9F%A5%E8%AF%86/</link>
       <pubDate>Thu, 07 Mar 2024 15:04:23 +0000</pubDate>
       <guid>https://zhouwuxiong.github.io/posts/slam-%E4%B8%AD%E7%9A%84%E5%9F%BA%E7%A1%80%E6%95%B0%E5%AD%A6%E7%9F%A5%E8%AF%86/</guid>
-      <description>&lt;p&gt;//&lt;/p&gt;
-&lt;h1 id=&#34;1-旋转的表示&#34;&gt;1 旋转的表示&lt;/h1&gt;
+      <description>&lt;h1 id=&#34;1-旋转的表示&#34;&gt;1 旋转的表示&lt;/h1&gt;
 &lt;h2 id=&#34;1-旋转向量&#34;&gt;1 旋转向量&lt;/h2&gt;
 &lt;h2 id=&#34;2-旋转矩阵&#34;&gt;2 旋转矩阵&lt;/h2&gt;
 &lt;ol&gt;
@@ -38,7 +37,7 @@ $$
 \begin{aligned}
 \left{
 \begin{array}{l}
-\theta = 2\arccos s \
+\theta = 2\arccos s \\
 [n_x,n_y,n_z]^T = v^T/\sin{\frac{\theta}{2}}
 \end{array}
 \right.
@@ -56,11 +55,19 @@ $$&lt;/p&gt;
 &lt;p&gt;旋转矩阵转旋转向量
 $$
 \begin{cases}
-\theta = \arccos(\frac{tr(\boldsymbol{R})-1}{2}) \[2ex]
+\theta = \arccos(\frac{tr(\boldsymbol{R})-1}{2}) \\[1ex]
 n = Rn, \quad \text{轴n是R特征值为1的单位特征向量}
 \end{cases}
 \tag{3}
-$$&lt;/p&gt;</description>
+$$&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;旋转向量$\boldsymbol\omega$转旋转矩阵（&lt;em&gt;罗德里格斯公式&lt;/em&gt;）
+$$
+\boldsymbol{R} = \cos\theta \boldsymbol{I} + (1- \cos\theta ) \boldsymbol {n} \boldsymbol {n}^T + \sin\theta  \boldsymbol {n}^{\wedge} = exp{(\boldsymbol{\omega^{\wedge}})}
+\tag{4}
+$$
+&lt;em&gt;旋转向量转旋转矩阵本质就是对应李代数的指数映射，李代数的指数映射将旋转向量映射为反对称矩阵&lt;/em&gt;&lt;/p&gt;</description>
     </item>
     <item>
       <title></title>
