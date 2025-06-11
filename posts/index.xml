@@ -7,8 +7,61 @@
     <generator>Hugo -- 0.146.0</generator>
     <language>en</language>
     <copyright>PaperMod Contributors</copyright>
-    <lastBuildDate>Fri, 02 Feb 2024 04:14:54 -0800</lastBuildDate>
+    <lastBuildDate>Thu, 07 Mar 2024 15:04:23 +0000</lastBuildDate>
     <atom:link href="https://zhouwuxiong.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>SLAM 中的基础数学知识</title>
+      <link>https://zhouwuxiong.github.io/posts/slam-%E4%B8%AD%E7%9A%84%E5%9F%BA%E7%A1%80%E6%95%B0%E5%AD%A6%E7%9F%A5%E8%AF%86/</link>
+      <pubDate>Thu, 07 Mar 2024 15:04:23 +0000</pubDate>
+      <guid>https://zhouwuxiong.github.io/posts/slam-%E4%B8%AD%E7%9A%84%E5%9F%BA%E7%A1%80%E6%95%B0%E5%AD%A6%E7%9F%A5%E8%AF%86/</guid>
+      <description>&lt;p&gt;//&lt;/p&gt;
+&lt;h1 id=&#34;1-旋转的表示&#34;&gt;1 旋转的表示&lt;/h1&gt;
+&lt;h2 id=&#34;1-旋转向量&#34;&gt;1 旋转向量&lt;/h2&gt;
+&lt;h2 id=&#34;2-旋转矩阵&#34;&gt;2 旋转矩阵&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;旋转矩阵有且只有一个实数特征值1；&lt;/li&gt;
+&lt;li&gt;不考虑单位矩阵，旋转矩阵的实数特征值对应的特征向量即是axis-angle表达式的旋转轴，旋转矩阵的迹与旋转角度相关。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id=&#34;3-四元数&#34;&gt;3 四元数&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;https://cnblogs.com/21207-iHome/p/6952004.html&#34;&gt;球面线性插值（Spherical linear interpolation，slerp)&lt;/a&gt;
+![[1-SLAM 中的基础数学知识.png]]
+$$
+Slerp(p,q,t) = \frac{\sin[(1-t)\theta] + \sin(t \theta q)}{\sin(\theta)}
+$$&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id=&#34;4-旋转表示之间的相互转换&#34;&gt;4 旋转表示之间的相互转换&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;四元数转旋转向量
+$$
+\begin{aligned}
+\left{
+\begin{array}{l}
+\theta = 2\arccos s \
+[n_x,n_y,n_z]^T = v^T/\sin{\frac{\theta}{2}}
+\end{array}
+\right.
+\end{aligned}
+\tag{1}
+$$&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;旋转$\theta\boldsymbol{n}$向量转四元数
+$$
+\boldsymbol{q} = [\cos \frac{\theta}{2},\boldsymbol{n} \sin \frac{\theta}{2}] \tag{2}
+$$&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;旋转矩阵转旋转向量
+$$
+\begin{cases}
+\theta = \arccos(\frac{tr(\boldsymbol{R})-1}{2}) \[2ex]
+n = Rn, \quad \text{轴n是R特征值为1的单位特征向量}
+\end{cases}
+\tag{3}
+$$&lt;/p&gt;</description>
+    </item>
     <item>
       <title></title>
       <link>https://zhouwuxiong.github.io/posts/obsidian-blog-publish/</link>
@@ -27,7 +80,7 @@
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;hugo version
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;2-obsidian-安装--enveloppe&#34;&gt;2 obsidian 安装  Enveloppe&lt;/h2&gt;
-&lt;p&gt;&lt;a href=&#34;https://zhouwuxiong.github.io/posts/link-test/&#34;&gt;link test&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;link%20test.md&#34;&gt;link test&lt;/a&gt;&lt;/p&gt;
 &lt;h2 id=&#34;3-enveloppe-配置&#34;&gt;3 Enveloppe 配置&lt;/h2&gt;
 &lt;p&gt;复制 json 文件导入
 &lt;a href=&#34;https://github.com/miaogaolin/obsidian-github-publisher-hugo/blob/main/settings.json&#34;&gt;obsidian-github-publisher-hugo/settings.json at main · miaogaolin/obsidian-github-publisher-hugo · GitHub&lt;/a&gt;&lt;/p&gt;
@@ -42,13 +95,6 @@
 &lt;p&gt;&lt;img alt=&#34;3-obsidian blog publish.png&#34; loading=&#34;lazy&#34; src=&#34;../../images/3-obsidian%20blog%20publish.png&#34;&gt;&lt;/p&gt;
 &lt;h2 id=&#34;4-vecel-部署&#34;&gt;4 vecel 部署&lt;/h2&gt;
 &lt;p&gt;&lt;img alt=&#34;4-obsidian blog publish.png&#34; loading=&#34;lazy&#34; src=&#34;../../images/4-obsidian%20blog%20publish.png&#34;&gt;&lt;/p&gt;</description>
-    </item>
-    <item>
-      <title>link test</title>
-      <link>https://zhouwuxiong.github.io/posts/link-test/</link>
-      <pubDate>Fri, 02 Feb 2024 04:14:54 -0800</pubDate>
-      <guid>https://zhouwuxiong.github.io/posts/link-test/</guid>
-      <description></description>
     </item>
   </channel>
 </rss>
