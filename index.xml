@@ -25,7 +25,7 @@ $$
 其中SO(3)的左雅克比矩阵为
 $$
 \begin{aligned}
-{J}_l(\theta{a}) &amp;amp;= \frac{\sin\theta}{\theta}{I} + (1-\frac{\sin\theta}{\theta}){a}{a}^T+(\frac{1-\cos\theta}{\theta}){a}^{\wedge} \\{J}^{-1}_l(\theta{a}) &amp;amp;= \frac{\theta}{2}\cot\frac{\theta}{2}{I} + (1-\frac{\theta}{2}\cot\frac{\theta}{2}){a}{a}^T-\frac{\theta}{2}{a}^{\wedge}
+{J}_l(\theta{a}) &amp;amp;= \frac{\sin\theta}{\theta}{I} + (1-\frac{\sin\theta}{\theta}){a}{a}^T+(\frac{1-\cos\theta}{\theta}){a}^{\wedge} \{J}^{-1}_l(\theta{a}) &amp;amp;= \frac{\theta}{2}\cot\frac{\theta}{2}{I} + (1-\frac{\theta}{2}\cot\frac{\theta}{2}){a}{a}^T-\frac{\theta}{2}{a}^{\wedge}
 \end{aligned}
 $$
 而SO(3)的右雅克比矩阵为
