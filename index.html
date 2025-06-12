@@ -190,7 +190,7 @@ document.addEventListener("DOMContentLoaded", function() {
     </h2>
   </header>
   <div class="entry-content">
-    <p>1 旋转的表示 1 旋转向量 2 旋转矩阵 旋转矩阵有且只有一个实数特征值1； 不考虑单位矩阵，旋转矩阵的实数特征值对应的特征向量即是axis-angle表达式的旋转轴，旋转矩阵的迹与旋转角度相关。 3 四元数 球面线性插值（Spherical linear interpolation，slerp) ![[1-SLAM 中的基础数学知识.png]] $$ Slerp(p,q,t) = \frac{\sin[(1-t)\theta] &#43; \sin(t \theta q)}{\sin(\theta)} $$ 4 旋转表示之间的相互转换 四元数转旋转向量 $$ \begin{cases}{l} \theta = 2\arccos s \\ [n_x,n_y,n_z]^T = \frac{v^T}{\sin{\frac{\theta}{2}}} \end{cases} $$
+    <p>1 旋转的表示 1.1 旋转向量 1.2 旋转矩阵 旋转矩阵有且只有一个实数特征值1； 不考虑单位矩阵，旋转矩阵的实数特征值对应的特征向量即是axis-angle表达式的旋转轴，旋转矩阵的迹与旋转角度相关。 1.3 四元数 球面线性插值（Spherical linear interpolation，slerp) ![[1-SLAM 中的基础数学知识.png]] $$ Slerp(p,q,t) = \frac{\sin[(1-t)\theta] &#43; \sin(t \theta q)}{\sin(\theta)} $$ 1.4 旋转表示之间的相互转换 四元数转旋转向量 $$ \begin{cases}{l} \theta = 2\arccos s \\ [n_x,n_y,n_z]^T = \frac{v^T}{\sin{\frac{\theta}{2}}} \end{cases} $$
 旋转$\theta\boldsymbol{n}$向量转四元数 $$ \boldsymbol{q} = [\cos \frac{\theta}{2},\boldsymbol{n} \sin \frac{\theta}{2}] \tag{2} $$
 旋转矩阵转旋转向量 $$ \begin{cases} \theta = \arccos(\frac{tr(\boldsymbol{R})-1}{2}) \\[1ex] n = Rn, \quad \text{轴n是R特征值为1的单位特征向量} \end{cases} \tag{3} $$
 旋转向量$\boldsymbol\omega$转旋转矩阵（罗德里格斯公式） $$ \boldsymbol{R} = \cos\theta \boldsymbol{I} &#43; (1- \cos\theta ) \boldsymbol {n} \boldsymbol {n}^T &#43; \sin\theta \boldsymbol {n}^{\wedge} = exp{(\boldsymbol{\omega^{\wedge}})} \tag{4} $$ 旋转向量转旋转矩阵本质就是对应李代数的指数映射，李代数的指数映射将旋转向量映射为反对称矩阵
