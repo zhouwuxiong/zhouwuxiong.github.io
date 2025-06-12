@@ -34,15 +34,10 @@ $$&lt;/li&gt;
 &lt;li&gt;
 &lt;p&gt;四元数转旋转向量
 $$
-\begin{aligned}
-\left{
-\begin{array}{l}
+\begin{cases}{l}
 \theta = 2\arccos s \\
 [n_x,n_y,n_z]^T = \frac{v^T}{\sin{\frac{\theta}{2}}}
-\end{array}
-\right.
-\end{aligned}
-\tag{1}
+\end{cases}
 $$&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
