@@ -69,7 +69,7 @@ $$
       <link>https://zhouwuxiong.github.io/posts/feature_match/</link>
       <pubDate>Thu, 07 Mar 2024 15:04:23 +0000</pubDate>
       <guid>https://zhouwuxiong.github.io/posts/feature_match/</guid>
-      <description>&lt;p&gt;一个好的特征描述符应该至少保留以下特征：&lt;/p&gt;
+      <description>&lt;p&gt;一个好的特征描述符应该至少保留以下特征： 123&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;旋转不变性&lt;/li&gt;
 &lt;li&gt;尺度不变性&lt;/li&gt;
