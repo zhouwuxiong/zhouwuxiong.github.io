@@ -190,6 +190,22 @@ document.addEventListener("DOMContentLoaded", function() {
     </h2>
   </header>
   <div class="entry-content">
+    <p>1 旋转的表示 1.1 旋转向量 1.2 旋转矩阵 旋转矩阵有且只有一个实数特征值1； 不考虑单位矩阵，旋转矩阵的实数特征值对应的特征向量即是axis-angle表达式的旋转轴，旋转矩阵的迹与旋转角度相关。 1.3 四元数 球面线性插值（Spherical linear interpolation，slerp) ![[1-SLAM 中的基础数学知识.png]] $$ Slerp(p,q,t) = \frac{\sin[(1-t)\theta] &#43; \sin(t \theta q)}{\sin(\theta)} $$ 1.4 旋转表示之间的相互转换 四元数转旋转向量 $$ \begin{cases}{l} \theta = 2\arccos s \\ [n_x,n_y,n_z]^T = \frac{v^T}{\sin{\frac{\theta}{2}}} \end{cases} $$
+旋转$\theta\boldsymbol{n}$向量转四元数 $$ \boldsymbol{q} = [\cos \frac{\theta}{2},\boldsymbol{n} \sin \frac{\theta}{2}] \tag{2} $$
+旋转矩阵转旋转向量 $$ \begin{cases} \theta = \arccos(\frac{tr(\boldsymbol{R})-1}{2}) \\[1ex] n = Rn, \quad \text{轴n是R特征值为1的单位特征向量} \end{cases} \tag{3} $$
+旋转向量$\boldsymbol\omega$转旋转矩阵（罗德里格斯公式） $$ \boldsymbol{R} = \cos\theta \boldsymbol{I} &#43; (1- \cos\theta ) \boldsymbol {n} \boldsymbol {n}^T &#43; \sin\theta \boldsymbol {n}^{\wedge} = exp{(\boldsymbol{\omega^{\wedge}})} \tag{4} $$ 旋转向量转旋转矩阵本质就是对应李代数的指数映射，李代数的指数映射将旋转向量映射为反对称矩阵
+...</p>
+  </div>
+  <footer class="entry-footer"><span title='2024-03-07 15:04:23 +0000 UTC'>March 7, 2024</span></footer>
+  <a class="entry-link" aria-label="post link to SLAM 中的基础数学知识" href="https://zhouwuxiong.github.io/posts/slam-%E4%B8%AD%E7%9A%84%E5%9F%BA%E7%A1%80%E6%95%B0%E5%AD%A6%E7%9F%A5%E8%AF%86/"></a>
+</article>
+
+<article class="post-entry"> 
+  <header class="entry-header">
+    <h2 class="entry-hint-parent">图像特征点
+    </h2>
+  </header>
+  <div class="entry-content">
     <p>一个好的特征描述符应该至少保留以下特征：
 旋转不变性 尺度不变性 光度不敏感 1 ORB 特征提取 ORB - (Oriented Fast and Rotated BRIEF)算法是基于FAST特征检测与BRIEF特征描述子匹配实现，相比BRIEF算法中依靠随机方式获取而值点对，ORB通过FAST方法，FAST方式寻找候选特征点方式是假设灰度图像像素点A周围的像素存在连续大于或者小于A的灰度值。
 1.1 Fast 角点 FAST角点定义为：若某像素点与周围邻域足够多的像素点处于不同区域，则该像素可能为角点。考虑灰度图像，即若某像素点的灰度值比周围邻域足够多的像素点的灰度值大或小，则该点可能为角点。
@@ -199,23 +215,7 @@ document.addEventListener("DOMContentLoaded", function() {
 2 SIFT</p>
   </div>
   <footer class="entry-footer"><span title='2024-03-07 15:04:23 +0000 UTC'>March 7, 2024</span></footer>
-  <a class="entry-link" aria-label="post link to SLAM 中的基础数学知识" href="https://zhouwuxiong.github.io/posts/feature_match/"></a>
-</article>
-
-<article class="post-entry"> 
-  <header class="entry-header">
-    <h2 class="entry-hint-parent">SLAM 中的基础数学知识
-    </h2>
-  </header>
-  <div class="entry-content">
-    <p>1 旋转的表示 1.1 旋转向量 1.2 旋转矩阵 旋转矩阵有且只有一个实数特征值1； 不考虑单位矩阵，旋转矩阵的实数特征值对应的特征向量即是axis-angle表达式的旋转轴，旋转矩阵的迹与旋转角度相关。 1.3 四元数 球面线性插值（Spherical linear interpolation，slerp) ![[1-SLAM 中的基础数学知识.png]] $$ Slerp(p,q,t) = \frac{\sin[(1-t)\theta] &#43; \sin(t \theta q)}{\sin(\theta)} $$ 1.4 旋转表示之间的相互转换 四元数转旋转向量 $$ \begin{cases}{l} \theta = 2\arccos s \\ [n_x,n_y,n_z]^T = \frac{v^T}{\sin{\frac{\theta}{2}}} \end{cases} $$
-旋转$\theta\boldsymbol{n}$向量转四元数 $$ \boldsymbol{q} = [\cos \frac{\theta}{2},\boldsymbol{n} \sin \frac{\theta}{2}] \tag{2} $$
-旋转矩阵转旋转向量 $$ \begin{cases} \theta = \arccos(\frac{tr(\boldsymbol{R})-1}{2}) \\[1ex] n = Rn, \quad \text{轴n是R特征值为1的单位特征向量} \end{cases} \tag{3} $$
-旋转向量$\boldsymbol\omega$转旋转矩阵（罗德里格斯公式） $$ \boldsymbol{R} = \cos\theta \boldsymbol{I} &#43; (1- \cos\theta ) \boldsymbol {n} \boldsymbol {n}^T &#43; \sin\theta \boldsymbol {n}^{\wedge} = exp{(\boldsymbol{\omega^{\wedge}})} \tag{4} $$ 旋转向量转旋转矩阵本质就是对应李代数的指数映射，李代数的指数映射将旋转向量映射为反对称矩阵
-...</p>
-  </div>
-  <footer class="entry-footer"><span title='2024-03-07 15:04:23 +0000 UTC'>March 7, 2024</span></footer>
-  <a class="entry-link" aria-label="post link to SLAM 中的基础数学知识" href="https://zhouwuxiong.github.io/posts/slam-%E4%B8%AD%E7%9A%84%E5%9F%BA%E7%A1%80%E6%95%B0%E5%AD%A6%E7%9F%A5%E8%AF%86/"></a>
+  <a class="entry-link" aria-label="post link to 图像特征点" href="https://zhouwuxiong.github.io/posts/feature_match/"></a>
 </article>
 
 <article class="post-entry"> 
