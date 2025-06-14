@@ -69,13 +69,13 @@ $$
       <link>https://zhouwuxiong.github.io/posts/feature_match/</link>
       <pubDate>Thu, 07 Mar 2024 15:04:23 +0000</pubDate>
       <guid>https://zhouwuxiong.github.io/posts/feature_match/</guid>
-      <description>&lt;p&gt;一个好的特征描述符应该至少保留以下特征： 123&lt;/p&gt;
+      <description>&lt;p&gt;一个好的特征描述符应该至少保留以下特征：&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;旋转不变性&lt;/li&gt;
 &lt;li&gt;尺度不变性&lt;/li&gt;
 &lt;li&gt;光度不敏感&lt;/li&gt;
 &lt;/ol&gt;
-&lt;h2 id=&#34;1-orb-特征提取&#34;&gt;1 ORB 特征提取&lt;/h2&gt;
+&lt;h2 id=&#34;1-orb-特征提取-124&#34;&gt;1 ORB 特征提取 124&lt;/h2&gt;
 &lt;p&gt;ORB - (Oriented Fast and Rotated BRIEF)算法是基于FAST特征检测与BRIEF特征描述子匹配实现，相比BRIEF算法中依靠随机方式获取而值点对，ORB通过FAST方法，FAST方式寻找候选特征点方式是假设灰度图像像素点A周围的像素存在连续大于或者小于A的灰度值。&lt;/p&gt;
 &lt;h3 id=&#34;11-fast-角点&#34;&gt;1.1 Fast 角点&lt;/h3&gt;
 &lt;p&gt; FAST角点定义为：若某像素点与周围邻域足够多的像素点处于不同区域，则该像素可能为角点。考虑灰度图像，即若某像素点的灰度值比周围邻域足够多的像素点的灰度值大或小，则该点可能为角点。&lt;/p&gt;
