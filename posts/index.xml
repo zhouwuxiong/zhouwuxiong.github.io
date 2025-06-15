@@ -132,6 +132,165 @@ IDF（Inverse Document Frequency），某个单词在词典中出现的频次，
 &lt;a href=&#34;https://xhy3054.github.io/2019/04/19/2019-04-19-bow/&#34;&gt;基于词袋模型的图像匹配 - Line&amp;rsquo;s Blog&lt;/a&gt;&lt;/p&gt;</description>
     </item>
     <item>
+      <title>SLAM 基础</title>
+      <link>https://zhouwuxiong.github.io/posts/slam-%E5%9F%BA%E7%A1%80/</link>
+      <pubDate>Tue, 05 Mar 2024 11:29:23 +0000</pubDate>
+      <guid>https://zhouwuxiong.github.io/posts/slam-%E5%9F%BA%E7%A1%80/</guid>
+      <description>&lt;h2 id=&#34;1-常见符号表示&#34;&gt;1 常见符号表示&lt;/h2&gt;
+&lt;h2 id=&#34;2-so3上的bch近似公式&#34;&gt;2  SO(3)上的BCH近似公式&lt;/h2&gt;
+&lt;p&gt;BCH公式给出了李代数上的小量加法与李群上小量乘法之间的关系（&lt;strong&gt;李代数加法 ⇔ 李群乘法&lt;/strong&gt;），其线性近似公式广泛应用于各种函数的线性化。
+在SO(3)中，某个旋转 $R$ 对应的李代数为 $\phi$，左乘一个微小旋转，记作 $\Delta{R}$，对应的李代数为 $\Delta\phi$，那么在李群上得到的结果就是 $\Delta RR$，而在李代数上，根据BCH近似，为 $J_l({\phi})^{-1}\Delta{\phi} +{\phi}$ 合并后可以简单写成：
+$$\Delta{R}{R} = \exp(\Delta{\phi}^{\wedge})\exp({\phi}^{\wedge}) = \exp \left(({\phi} + {J}_l({\phi})^{-1}\Delta{\phi})^{\wedge} \right)$$
+反过来，如果在李代数上进行加法，让一个 ${\phi}$加上小量 $\Delta{\phi}$，那么可以近似为李群上带左右雅克比矩阵的乘法：
+$$\exp(({\phi} + \Delta{\phi})^{\wedge}) = \exp(({J}_l({\phi})\Delta{\phi})^\wedge) \exp({\phi}^\wedge)= \exp({\phi}^\wedge) \exp(({J}_r({\phi})\Delta{\phi})^\wedge)
+$$
+其中SO(3)的左雅克比矩阵为
+$$
+\begin{aligned}
+{J}_l(\theta{a}) &amp;amp;= \frac{\sin\theta}{\theta}{I} + (1-\frac{\sin\theta}{\theta}){a}{a}^T+(\frac{1-\cos\theta}{\theta}){a}^{\wedge} \{J}^{-1}_l(\theta{a}) &amp;amp;= \frac{\theta}{2}\cot\frac{\theta}{2}{I} + (1-\frac{\theta}{2}\cot\frac{\theta}{2}){a}{a}^T-\frac{\theta}{2}{a}^{\wedge}
+\end{aligned}
+$$
+而SO(3)的右雅克比矩阵为
+$$
+{J}_r({\phi}) = {J}_l(-{\phi})
+$$&lt;/p&gt;
+&lt;h2 id=&#34;3-kfekfeskf&#34;&gt;3 KF、EKF、ESKF&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;KF 的状态和观测方程的递推是高斯分布的线性变换，融合结果则是两个高斯分布相乘得到一个新的高斯分布，卡尔曼增益则是系数&lt;/strong&gt;
+&lt;a href=&#34;https://zhuanlan.zhihu.com/p/39912633&#34;&gt;Site Unreachable&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;KF、EKF、ESKF 的本质都是对高斯分布的线性变换。他们的区别在于高斯线性变换时的系数不同，KF 的线性系数是常数，EKF的线性系数是雅可比矩阵
+&lt;strong&gt;KF&lt;/strong&gt;
+假设运动方程为:
+$$
+x_{k+1} = Ax_k + u_k + w_k, w \sim (\mu,\sigma^2)
+$$
+由于该公式为线性变换，所以$x_{K+1}$ 也服从高斯分布。
+$$
+x_{k+1} \sim (A\mu + u_k ,A \sigma^2 A^T)
+$$
+&lt;strong&gt;EKF&lt;/strong&gt;
+假设运动方程为:
+$$
+x_{k+1} = f(x_k) + u_k + w_k, w \sim (\mu,\sigma^2)
+$$
+其中$f(x)$ 表示非线性变换，将其在$x_k$进行一阶泰勒展开：
+$$
+f(x) = f(x_k) + J(x-x_k)
+$$
+所以下一时刻的$x_{k+1}$ 的分布为
+$$
+x_{k+1} \sim (J \mu + u_k, J \sigma^2 J^T)
+$$
+其与KF 的区别在与 A 是常量，而 J 是与线性化点相关的变量。
+&lt;strong&gt;ESKF&lt;/strong&gt;
+ESKF 与 EKF 类似，只是 EKF 是对整个运动方程进行高斯过程，而 ESKF 只对噪声进行高斯过程，对于测量值（名义变量）则进行直接的递推。最终的结果由测量值的递推和噪声的预测值相加得到。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>SLAM 基础</title>
+      <link>https://zhouwuxiong.github.io/posts/slam-%E5%9F%BA%E7%A1%801/</link>
+      <pubDate>Tue, 05 Mar 2024 11:29:23 +0000</pubDate>
+      <guid>https://zhouwuxiong.github.io/posts/slam-%E5%9F%BA%E7%A1%801/</guid>
+      <description>&lt;h2 id=&#34;1-常见符号表示&#34;&gt;1 常见符号表示&lt;/h2&gt;
+&lt;h2 id=&#34;2-so3上的bch近似公式&#34;&gt;2  SO(3)上的BCH近似公式&lt;/h2&gt;
+&lt;p&gt;BCH公式给出了李代数上的小量加法与李群上小量乘法之间的关系（&lt;strong&gt;李代数加法 ⇔ 李群乘法&lt;/strong&gt;），其线性近似公式广泛应用于各种函数的线性化。
+在SO(3)中，某个旋转 $R$ 对应的李代数为 $\phi$，左乘一个微小旋转，记作 $\Delta{R}$，对应的李代数为 $\Delta\phi$，那么在李群上得到的结果就是 $\Delta RR$，而在李代数上，根据BCH近似，为 $J_l({\phi})^{-1}\Delta{\phi} +{\phi}$ 合并后可以简单写成：
+$$\Delta{R}{R} = \exp(\Delta{\phi}^{\wedge})\exp({\phi}^{\wedge}) = \exp \left(({\phi} + {J}_l({\phi})^{-1}\Delta{\phi})^{\wedge} \right)$$
+反过来，如果在李代数上进行加法，让一个 ${\phi}$加上小量 $\Delta{\phi}$，那么可以近似为李群上带左右雅克比矩阵的乘法：
+$$\exp(({\phi} + \Delta{\phi})^{\wedge}) = \exp(({J}_l({\phi})\Delta{\phi})^\wedge) \exp({\phi}^\wedge)= \exp({\phi}^\wedge) \exp(({J}_r({\phi})\Delta{\phi})^\wedge)
+$$
+其中SO(3)的左雅克比矩阵为
+$$
+\begin{aligned}
+{J}_l(\theta{a}) &amp;amp;= \frac{\sin\theta}{\theta}{I} + (1-\frac{\sin\theta}{\theta}){a}{a}^T+(\frac{1-\cos\theta}{\theta}){a}^{\wedge} \{J}^{-1}_l(\theta{a}) &amp;amp;= \frac{\theta}{2}\cot\frac{\theta}{2}{I} + (1-\frac{\theta}{2}\cot\frac{\theta}{2}){a}{a}^T-\frac{\theta}{2}{a}^{\wedge}
+\end{aligned}
+$$
+而SO(3)的右雅克比矩阵为
+$$
+{J}_r({\phi}) = {J}_l(-{\phi})
+$$&lt;/p&gt;
+&lt;h2 id=&#34;3-kfekfeskf&#34;&gt;3 KF、EKF、ESKF&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;KF 的状态和观测方程的递推是高斯分布的线性变换，融合结果则是两个高斯分布相乘得到一个新的高斯分布，卡尔曼增益则是系数&lt;/strong&gt;
+&lt;a href=&#34;https://zhuanlan.zhihu.com/p/39912633&#34;&gt;Site Unreachable&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;KF、EKF、ESKF 的本质都是对高斯分布的线性变换。他们的区别在于高斯线性变换时的系数不同，KF 的线性系数是常数，EKF的线性系数是雅可比矩阵
+&lt;strong&gt;KF&lt;/strong&gt;
+假设运动方程为:
+$$
+x_{k+1} = Ax_k + u_k + w_k, w \sim (\mu,\sigma^2)
+$$
+由于该公式为线性变换，所以$x_{K+1}$ 也服从高斯分布。
+$$
+x_{k+1} \sim (A\mu + u_k ,A \sigma^2 A^T)
+$$
+&lt;strong&gt;EKF&lt;/strong&gt;
+假设运动方程为:
+$$
+x_{k+1} = f(x_k) + u_k + w_k, w \sim (\mu,\sigma^2)
+$$
+其中$f(x)$ 表示非线性变换，将其在$x_k$进行一阶泰勒展开：
+$$
+f(x) = f(x_k) + J(x-x_k)
+$$
+所以下一时刻的$x_{k+1}$ 的分布为
+$$
+x_{k+1} \sim (J \mu + u_k, J \sigma^2 J^T)
+$$
+其与KF 的区别在与 A 是常量，而 J 是与线性化点相关的变量。
+&lt;strong&gt;ESKF&lt;/strong&gt;
+ESKF 与 EKF 类似，只是 EKF 是对整个运动方程进行高斯过程，而 ESKF 只对噪声进行高斯过程，对于测量值（名义变量）则进行直接的递推。最终的结果由测量值的递推和噪声的预测值相加得到。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>SLAM 基础</title>
+      <link>https://zhouwuxiong.github.io/posts/test/</link>
+      <pubDate>Tue, 05 Mar 2024 11:29:23 +0000</pubDate>
+      <guid>https://zhouwuxiong.github.io/posts/test/</guid>
+      <description>&lt;h2 id=&#34;1-常见符号表示&#34;&gt;1 常见符号表示&lt;/h2&gt;
+&lt;h2 id=&#34;2-so3上的bch近似公式&#34;&gt;2  SO(3)上的BCH近似公式&lt;/h2&gt;
+&lt;p&gt;BCH公式给出了李代数上的小量加法与李群上小量乘法之间的关系（&lt;strong&gt;李代数加法 ⇔ 李群乘法&lt;/strong&gt;），其线性近似公式广泛应用于各种函数的线性化。
+在SO(3)中，某个旋转 $R$ 对应的李代数为 $\phi$，左乘一个微小旋转，记作 $\Delta{R}$，对应的李代数为 $\Delta\phi$，那么在李群上得到的结果就是 $\Delta RR$，而在李代数上，根据BCH近似，为 $J_l({\phi})^{-1}\Delta{\phi} +{\phi}$ 合并后可以简单写成：
+$$\Delta{R}{R} = \exp(\Delta{\phi}^{\wedge})\exp({\phi}^{\wedge}) = \exp \left(({\phi} + {J}_l({\phi})^{-1}\Delta{\phi})^{\wedge} \right)$$
+反过来，如果在李代数上进行加法，让一个 ${\phi}$加上小量 $\Delta{\phi}$，那么可以近似为李群上带左右雅克比矩阵的乘法：
+$$\exp(({\phi} + \Delta{\phi})^{\wedge}) = \exp(({J}_l({\phi})\Delta{\phi})^\wedge) \exp({\phi}^\wedge)= \exp({\phi}^\wedge) \exp(({J}_r({\phi})\Delta{\phi})^\wedge)
+$$
+其中SO(3)的左雅克比矩阵为
+$$
+\begin{aligned}
+{J}_l(\theta{a}) &amp;amp;= \frac{\sin\theta}{\theta}{I} + (1-\frac{\sin\theta}{\theta}){a}{a}^T+(\frac{1-\cos\theta}{\theta}){a}^{\wedge} \{J}^{-1}_l(\theta{a}) &amp;amp;= \frac{\theta}{2}\cot\frac{\theta}{2}{I} + (1-\frac{\theta}{2}\cot\frac{\theta}{2}){a}{a}^T-\frac{\theta}{2}{a}^{\wedge}
+\end{aligned}
+$$
+而SO(3)的右雅克比矩阵为
+$$
+{J}_r({\phi}) = {J}_l(-{\phi})
+$$&lt;/p&gt;
+&lt;h2 id=&#34;3-kfekfeskf&#34;&gt;3 KF、EKF、ESKF&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;KF 的状态和观测方程的递推是高斯分布的线性变换，融合结果则是两个高斯分布相乘得到一个新的高斯分布，卡尔曼增益则是系数&lt;/strong&gt;
+&lt;a href=&#34;https://zhuanlan.zhihu.com/p/39912633&#34;&gt;Site Unreachable&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;KF、EKF、ESKF 的本质都是对高斯分布的线性变换。他们的区别在于高斯线性变换时的系数不同，KF 的线性系数是常数，EKF的线性系数是雅可比矩阵
+&lt;strong&gt;KF&lt;/strong&gt;
+假设运动方程为:
+$$
+x_{k+1} = Ax_k + u_k + w_k, w \sim (\mu,\sigma^2)
+$$
+由于该公式为线性变换，所以$x_{K+1}$ 也服从高斯分布。
+$$
+x_{k+1} \sim (A\mu + u_k ,A \sigma^2 A^T)
+$$
+&lt;strong&gt;EKF&lt;/strong&gt;
+假设运动方程为:
+$$
+x_{k+1} = f(x_k) + u_k + w_k, w \sim (\mu,\sigma^2)
+$$
+其中$f(x)$ 表示非线性变换，将其在$x_k$进行一阶泰勒展开：
+$$
+f(x) = f(x_k) + J(x-x_k)
+$$
+所以下一时刻的$x_{k+1}$ 的分布为
+$$
+x_{k+1} \sim (J \mu + u_k, J \sigma^2 J^T)
+$$
+其与KF 的区别在与 A 是常量，而 J 是与线性化点相关的变量。
+&lt;strong&gt;ESKF&lt;/strong&gt;
+ESKF 与 EKF 类似，只是 EKF 是对整个运动方程进行高斯过程，而 ESKF 只对噪声进行高斯过程，对于测量值（名义变量）则进行直接的递推。最终的结果由测量值的递推和噪声的预测值相加得到。&lt;/p&gt;</description>
+    </item>
+    <item>
       <title></title>
       <link>https://zhouwuxiong.github.io/posts/obsidian-blog-publish/</link>
       <pubDate>Fri, 02 Feb 2024 04:14:54 -0800</pubDate>
