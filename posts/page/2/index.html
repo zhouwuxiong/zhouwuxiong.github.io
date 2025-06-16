@@ -201,6 +201,21 @@ KF、EKF、ESKF 的本质都是对高斯分布的线性变换。他们的区别�
 ...</p>
   </div>
   <footer class="entry-footer"><span title='2024-03-05 11:29:23 +0000 UTC'>March 5, 2024</span></footer>
+  <a class="entry-link" aria-label="post link to SLAM 基础" href="https://zhouwuxiong.github.io/posts/slam-%E5%9F%BA%E7%A1%801/"></a>
+</article>
+
+<article class="post-entry"> 
+  <header class="entry-header">
+    <h2 class="entry-hint-parent">SLAM 基础
+    </h2>
+  </header>
+  <div class="entry-content">
+    <p>1 常见符号表示 2 SO(3)上的BCH近似公式 BCH公式给出了李代数上的小量加法与李群上小量乘法之间的关系（李代数加法 ⇔ 李群乘法），其线性近似公式广泛应用于各种函数的线性化。 在SO(3)中，某个旋转 $R$ 对应的李代数为 $\phi$，左乘一个微小旋转，记作 $\Delta{R}$，对应的李代数为 $\Delta\phi$，那么在李群上得到的结果就是 $\Delta RR$，而在李代数上，根据BCH近似，为 $J_l({\phi})^{-1}\Delta{\phi} &#43;{\phi}$ 合并后可以简单写成： $$\Delta{R}{R} = \exp(\Delta{\phi}^{\wedge})\exp({\phi}^{\wedge}) = \exp \left(({\phi} &#43; {J}_l({\phi})^{-1}\Delta{\phi})^{\wedge} \right)$$ 反过来，如果在李代数上进行加法，让一个 ${\phi}$加上小量 $\Delta{\phi}$，那么可以近似为李群上带左右雅克比矩阵的乘法： $$\exp(({\phi} &#43; \Delta{\phi})^{\wedge}) = \exp(({J}_l({\phi})\Delta{\phi})^\wedge) \exp({\phi}^\wedge)= \exp({\phi}^\wedge) \exp(({J}_r({\phi})\Delta{\phi})^\wedge) $$ 其中SO(3)的左雅克比矩阵为 $$ \begin{aligned} {J}_l(\theta{a}) &amp;= \frac{\sin\theta}{\theta}{I} &#43; (1-\frac{\sin\theta}{\theta}){a}{a}^T&#43;(\frac{1-\cos\theta}{\theta}){a}^{\wedge} \{J}^{-1}_l(\theta{a}) &amp;= \frac{\theta}{2}\cot\frac{\theta}{2}{I} &#43; (1-\frac{\theta}{2}\cot\frac{\theta}{2}){a}{a}^T-\frac{\theta}{2}{a}^{\wedge} \end{aligned} $$ 而SO(3)的右雅克比矩阵为 $$ {J}_r({\phi}) = {J}_l(-{\phi}) $$
+3 KF、EKF、ESKF KF 的状态和观测方程的递推是高斯分布的线性变换，融合结果则是两个高斯分布相乘得到一个新的高斯分布，卡尔曼增益则是系数 Site Unreachable
+KF、EKF、ESKF 的本质都是对高斯分布的线性变换。他们的区别在于高斯线性变换时的系数不同，KF 的线性系数是常数，EKF的线性系数是雅可比矩阵 KF 假设运动方程为: $$ x_{k&#43;1} = Ax_k &#43; u_k &#43; w_k, w \sim (\mu,\sigma^2) $$ 由于该公式为线性变换，所以$x_{K&#43;1}$ 也服从高斯分布。 $$ x_{k&#43;1} \sim (A\mu &#43; u_k ,A \sigma^2 A^T) $$ EKF 假设运动方程为: $$ x_{k&#43;1} = f(x_k) &#43; u_k &#43; w_k, w \sim (\mu,\sigma^2) $$ 其中$f(x)$ 表示非线性变换，将其在$x_k$进行一阶泰勒展开： $$ f(x) = f(x_k) &#43; J(x-x_k) $$ 所以下一时刻的$x_{k&#43;1}$ 的分布为 $$ x_{k&#43;1} \sim (J \mu &#43; u_k, J \sigma^2 J^T) $$ 其与KF 的区别在与 A 是常量，而 J 是与线性化点相关的变量。 ESKF ESKF 与 EKF 类似，只是 EKF 是对整个运动方程进行高斯过程，而 ESKF 只对噪声进行高斯过程，对于测量值（名义变量）则进行直接的递推。最终的结果由测量值的递推和噪声的预测值相加得到。
+...</p>
+  </div>
+  <footer class="entry-footer"><span title='2024-03-05 11:29:23 +0000 UTC'>March 5, 2024</span></footer>
   <a class="entry-link" aria-label="post link to SLAM 基础" href="https://zhouwuxiong.github.io/posts/test/"></a>
 </article>
 

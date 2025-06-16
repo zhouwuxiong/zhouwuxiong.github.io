@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="robots" content="index, follow">
-<title>图像特征点 | PaperMod</title>
+<title>图像匹配 | PaperMod</title>
 <meta name="keywords" content="">
 <meta name="description" content="1 BoW
 ORB_SLAM 使用 BoW 进行相似图像检索，在重定位、回环检测、参考关键帧跟踪过程中都有用到。BoW 是一种 K 叉树形式的分类树，在构造 K 叉树时，根据特征描述的相似性作为距离度量进行聚类，树的叶子节点被计为单词，每个单词使用特征点的聚类中心表示。在进行特征匹配时，根据特征点是否落在同一个叶子节点判断是否对应同一个单词，同时可以得到一个相似度得分。一般在进行图像特征匹配时会根据公共单词数量和最小的相似度得分判断图像之间的相似性。
@@ -27,7 +27,163 @@ L1  ，各维度的差值的绝对值求和
 ORB_SLAM 在对图像生成词向量时，会根据 levelsup 记录图像中的单词落在了某层的哪些分支，这样在进行单词匹配时，只需要查找对应分支而不是从根节点开始查找，提高查找效率。
 
 Reference:
-基于词袋模型的图像匹配 - Line&rsquo;s Blog">
+基于词袋模型的图像匹配 - Line&rsquo;s Blog
+Appendix:
+/*
+ * @brief 通过词袋，对关键帧的特征点进行跟踪，该函数用于闭环检测时两个关键帧间的特征点匹配
+ * @details 通过bow对pKF和F中的特征点进行快速匹配（不属于同一node的特征点直接跳过匹配） 
+ * 对属于同一node的特征点通过描述子距离进行匹配 
+ * 通过距离阈值、比例阈值和角度投票进行剔除误匹配
+ * @param  pKF1               KeyFrame1
+ * @param  pKF2               KeyFrame2
+ * @param  vpMatches12        pKF2中与pKF1匹配的MapPoint，vpMatches12[i]表示匹配的地图点，null表示没有匹配，i表示匹配的pKF1 特征点索引
+ * @return                    成功匹配的数量
+ */
+int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector&lt;MapPoint *&gt; &amp;vpMatches12)
+{
+    // Step 1 分别取出两个关键帧的特征点、BoW 向量、地图点、描述子
+    const vector&lt;cv::KeyPoint&gt; &amp;vKeysUn1 = pKF1-&gt;mvKeysUn;
+    const DBoW2::FeatureVector &amp;vFeatVec1 = pKF1-&gt;mFeatVec;
+    const vector&lt;MapPoint*&gt; vpMapPoints1 = pKF1-&gt;GetMapPointMatches();
+    const cv::Mat &amp;Descriptors1 = pKF1-&gt;mDescriptors;
+
+    const vector&lt;cv::KeyPoint&gt; &amp;vKeysUn2 = pKF2-&gt;mvKeysUn;
+    const DBoW2::FeatureVector &amp;vFeatVec2 = pKF2-&gt;mFeatVec;
+    const vector&lt;MapPoint*&gt; vpMapPoints2 = pKF2-&gt;GetMapPointMatches();
+    const cv::Mat &amp;Descriptors2 = pKF2-&gt;mDescriptors;
+
+    // 保存匹配结果
+    vpMatches12 = vector&lt;MapPoint*&gt;(vpMapPoints1.size(),static_cast&lt;MapPoint*&gt;(NULL));
+    vector&lt;bool&gt; vbMatched2(vpMapPoints2.size(),false);
+
+    // Step 2 构建旋转直方图，HISTO_LENGTH = 30
+    vector&lt;int&gt; rotHist[HISTO_LENGTH];
+    for(int i=0;i&lt;HISTO_LENGTH;i&#43;&#43;)
+        rotHist[i].reserve(500);
+
+    //! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码   
+    const float factor = HISTO_LENGTH/360.0f;
+
+    int nmatches = 0;
+
+    DBoW2::FeatureVector::const_iterator f1it = vFeatVec1.begin();
+    DBoW2::FeatureVector::const_iterator f2it = vFeatVec2.begin();
+    DBoW2::FeatureVector::const_iterator f1end = vFeatVec1.end();
+    DBoW2::FeatureVector::const_iterator f2end = vFeatVec2.end();
+
+    while(f1it != f1end &amp;&amp; f2it != f2end)
+    {
+        // Step 3 开始遍历，分别取出属于同一node的特征点(只有属于同一node，才有可能是匹配点)
+        if(f1it-&gt;first == f2it-&gt;first)
+        {
+            // 遍历KF中属于该node的特征点
+            for(size_t i1=0, iend1=f1it-&gt;second.size(); i1&lt;iend1; i1&#43;&#43;)
+            {
+                const size_t idx1 = f1it-&gt;second[i1];
+
+                MapPoint* pMP1 = vpMapPoints1[idx1];
+                if(!pMP1)
+                    continue;
+                if(pMP1-&gt;isBad())
+                    continue;
+
+                const cv::Mat &amp;d1 = Descriptors1.row(idx1);
+
+                int bestDist1=256;
+                int bestIdx2 =-1 ;
+                int bestDist2=256;
+
+                // Step 4 遍历KF2中属于该node的特征点，找到了最优及次优匹配点
+                for(size_t i2=0, iend2=f2it-&gt;second.size(); i2&lt;iend2; i2&#43;&#43;)
+                {
+                    const size_t idx2 = f2it-&gt;second[i2];
+
+                    MapPoint* pMP2 = vpMapPoints2[idx2];
+
+                    // 如果已经有匹配的点，或者遍历到的特征点对应的地图点无效
+                    if(vbMatched2[idx2] || !pMP2)
+                        continue;
+
+                    if(pMP2-&gt;isBad())
+                        continue;
+
+                    const cv::Mat &amp;d2 = Descriptors2.row(idx2);
+
+                    int dist = DescriptorDistance(d1,d2);
+
+                    if(dist&lt;bestDist1)
+                    {
+                        bestDist2=bestDist1;
+                        bestDist1=dist;
+                        bestIdx2=idx2;
+                    }
+                    else if(dist&lt;bestDist2)
+                    {
+                        bestDist2=dist;
+                    }
+                }
+
+                // Step 5 对匹配结果进行检查，满足阈值、最优/次优比例，记录旋转直方图信息
+                if(bestDist1&lt;TH_LOW)
+                {
+                    if(static_cast&lt;float&gt;(bestDist1)&lt;mfNNratio*static_cast&lt;float&gt;(bestDist2))
+                    {
+                        vpMatches12[idx1]=vpMapPoints2[bestIdx2];
+                        vbMatched2[bestIdx2]=true;
+
+                        if(mbCheckOrientation)
+                        {
+                            float rot = vKeysUn1[idx1].angle-vKeysUn2[bestIdx2].angle;
+                            if(rot&lt;0.0)
+                                rot&#43;=360.0f;
+                            int bin = round(rot*factor);
+                            if(bin==HISTO_LENGTH)
+                                bin=0;
+                            assert(bin&gt;=0 &amp;&amp; bin&lt;HISTO_LENGTH);
+                            rotHist[bin].push_back(idx1);
+                        }
+                        nmatches&#43;&#43;;
+                    }
+                }
+            }
+
+            f1it&#43;&#43;;
+            f2it&#43;&#43;;
+        }
+        else if(f1it-&gt;first &lt; f2it-&gt;first)
+        {
+            f1it = vFeatVec1.lower_bound(f2it-&gt;first);
+        }
+        else
+        {
+            f2it = vFeatVec2.lower_bound(f1it-&gt;first);
+        }
+    }
+
+    // Step 6 检查旋转直方图分布，剔除差异较大的匹配
+    if(mbCheckOrientation)
+    {
+        int ind1=-1;
+        int ind2=-1;
+        int ind3=-1;
+
+        ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3);
+
+        for(int i=0; i&lt;HISTO_LENGTH; i&#43;&#43;)
+        {
+            if(i==ind1 || i==ind2 || i==ind3)
+                continue;
+            for(size_t j=0, jend=rotHist[i].size(); j&lt;jend; j&#43;&#43;)
+            {
+                vpMatches12[rotHist[i][j]]=static_cast&lt;MapPoint*&gt;(NULL);
+                nmatches--;
+            }
+        }
+    }
+
+    return nmatches;
+}
+">
 <meta name="author" content="">
 <link rel="canonical" href="https://zhouwuxiong.github.io/posts/image_match/">
 <link crossorigin="anonymous" href="/assets/css/stylesheet.2211ca3164be7830024f6aad2b3a2e520843a64f8f048445c3401c1249aa051d.css" integrity="sha256-IhHKMWS&#43;eDACT2qtKzouUghDpk&#43;PBIRFw0AcEkmqBR0=" rel="preload stylesheet" as="style">
@@ -96,18 +252,20 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 <meta property="og:url" content="https://zhouwuxiong.github.io/posts/image_match/">
   <meta property="og:site_name" content="PaperMod">
-  <meta property="og:title" content="图像特征点">
+  <meta property="og:title" content="图像匹配">
   <meta property="og:description" content="1 BoW ORB_SLAM 使用 BoW 进行相似图像检索，在重定位、回环检测、参考关键帧跟踪过程中都有用到。BoW 是一种 K 叉树形式的分类树，在构造 K 叉树时，根据特征描述的相似性作为距离度量进行聚类，树的叶子节点被计为单词，每个单词使用特征点的聚类中心表示。在进行特征匹配时，根据特征点是否落在同一个叶子节点判断是否对应同一个单词，同时可以得到一个相似度得分。一般在进行图像特征匹配时会根据公共单词数量和最小的相似度得分判断图像之间的相似性。 1.1 TF-IDF TF（Term Frequency），指在单帧中某个单词的频次，频次高，权重大 IDF（Inverse Document Frequency），某个单词在词典中出现的频次，频次越低，则辨识度越高，相应权重 IDF 越大 最终 BoW 的权重是 TF*IDF ，每个单词都有自己的权重。
 1.2 正向索引 再计算BoW时，每帧图像会记录一个正向索引表，记录在kd树某一层，命中的节点集合，以及节点中的特征点，用于加速两帧图像之间的特征点匹配。
 1.3 逆向索引 orb-slam 中维护了一个关键帧数据库，其中有一个单词的逆向索引表，其记录了包含这个单词的关键帧和权重，用于快速查找匹配关键帧。
-1.4 相似性对量 L1 ，各维度的差值的绝对值求和 余弦相似度 ，向量夹角 1.5 levelsup ORB_SLAM 在对图像生成词向量时，会根据 levelsup 记录图像中的单词落在了某层的哪些分支，这样在进行单词匹配时，只需要查找对应分支而不是从根节点开始查找，提高查找效率。 Reference: 基于词袋模型的图像匹配 - Line’s Blog">
+1.4 相似性对量 L1 ，各维度的差值的绝对值求和 余弦相似度 ，向量夹角 1.5 levelsup ORB_SLAM 在对图像生成词向量时，会根据 levelsup 记录图像中的单词落在了某层的哪些分支，这样在进行单词匹配时，只需要查找对应分支而不是从根节点开始查找，提高查找效率。 Reference: 基于词袋模型的图像匹配 - Line’s Blog
+Appendix:
+/* * @brief 通过词袋，对关键帧的特征点进行跟踪，该函数用于闭环检测时两个关键帧间的特征点匹配 * @details 通过bow对pKF和F中的特征点进行快速匹配（不属于同一node的特征点直接跳过匹配） * 对属于同一node的特征点通过描述子距离进行匹配 * 通过距离阈值、比例阈值和角度投票进行剔除误匹配 * @param pKF1 KeyFrame1 * @param pKF2 KeyFrame2 * @param vpMatches12 pKF2中与pKF1匹配的MapPoint，vpMatches12[i]表示匹配的地图点，null表示没有匹配，i表示匹配的pKF1 特征点索引 * @return 成功匹配的数量 */ int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector&lt;MapPoint *&gt; &amp;vpMatches12) { // Step 1 分别取出两个关键帧的特征点、BoW 向量、地图点、描述子 const vector&lt;cv::KeyPoint&gt; &amp;vKeysUn1 = pKF1-&gt;mvKeysUn; const DBoW2::FeatureVector &amp;vFeatVec1 = pKF1-&gt;mFeatVec; const vector&lt;MapPoint*&gt; vpMapPoints1 = pKF1-&gt;GetMapPointMatches(); const cv::Mat &amp;Descriptors1 = pKF1-&gt;mDescriptors; const vector&lt;cv::KeyPoint&gt; &amp;vKeysUn2 = pKF2-&gt;mvKeysUn; const DBoW2::FeatureVector &amp;vFeatVec2 = pKF2-&gt;mFeatVec; const vector&lt;MapPoint*&gt; vpMapPoints2 = pKF2-&gt;GetMapPointMatches(); const cv::Mat &amp;Descriptors2 = pKF2-&gt;mDescriptors; // 保存匹配结果 vpMatches12 = vector&lt;MapPoint*&gt;(vpMapPoints1.size(),static_cast&lt;MapPoint*&gt;(NULL)); vector&lt;bool&gt; vbMatched2(vpMapPoints2.size(),false); // Step 2 构建旋转直方图，HISTO_LENGTH = 30 vector&lt;int&gt; rotHist[HISTO_LENGTH]; for(int i=0;i&lt;HISTO_LENGTH;i&#43;&#43;) rotHist[i].reserve(500); //! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码 const float factor = HISTO_LENGTH/360.0f; int nmatches = 0; DBoW2::FeatureVector::const_iterator f1it = vFeatVec1.begin(); DBoW2::FeatureVector::const_iterator f2it = vFeatVec2.begin(); DBoW2::FeatureVector::const_iterator f1end = vFeatVec1.end(); DBoW2::FeatureVector::const_iterator f2end = vFeatVec2.end(); while(f1it != f1end &amp;&amp; f2it != f2end) { // Step 3 开始遍历，分别取出属于同一node的特征点(只有属于同一node，才有可能是匹配点) if(f1it-&gt;first == f2it-&gt;first) { // 遍历KF中属于该node的特征点 for(size_t i1=0, iend1=f1it-&gt;second.size(); i1&lt;iend1; i1&#43;&#43;) { const size_t idx1 = f1it-&gt;second[i1]; MapPoint* pMP1 = vpMapPoints1[idx1]; if(!pMP1) continue; if(pMP1-&gt;isBad()) continue; const cv::Mat &amp;d1 = Descriptors1.row(idx1); int bestDist1=256; int bestIdx2 =-1 ; int bestDist2=256; // Step 4 遍历KF2中属于该node的特征点，找到了最优及次优匹配点 for(size_t i2=0, iend2=f2it-&gt;second.size(); i2&lt;iend2; i2&#43;&#43;) { const size_t idx2 = f2it-&gt;second[i2]; MapPoint* pMP2 = vpMapPoints2[idx2]; // 如果已经有匹配的点，或者遍历到的特征点对应的地图点无效 if(vbMatched2[idx2] || !pMP2) continue; if(pMP2-&gt;isBad()) continue; const cv::Mat &amp;d2 = Descriptors2.row(idx2); int dist = DescriptorDistance(d1,d2); if(dist&lt;bestDist1) { bestDist2=bestDist1; bestDist1=dist; bestIdx2=idx2; } else if(dist&lt;bestDist2) { bestDist2=dist; } } // Step 5 对匹配结果进行检查，满足阈值、最优/次优比例，记录旋转直方图信息 if(bestDist1&lt;TH_LOW) { if(static_cast&lt;float&gt;(bestDist1)&lt;mfNNratio*static_cast&lt;float&gt;(bestDist2)) { vpMatches12[idx1]=vpMapPoints2[bestIdx2]; vbMatched2[bestIdx2]=true; if(mbCheckOrientation) { float rot = vKeysUn1[idx1].angle-vKeysUn2[bestIdx2].angle; if(rot&lt;0.0) rot&#43;=360.0f; int bin = round(rot*factor); if(bin==HISTO_LENGTH) bin=0; assert(bin&gt;=0 &amp;&amp; bin&lt;HISTO_LENGTH); rotHist[bin].push_back(idx1); } nmatches&#43;&#43;; } } } f1it&#43;&#43;; f2it&#43;&#43;; } else if(f1it-&gt;first &lt; f2it-&gt;first) { f1it = vFeatVec1.lower_bound(f2it-&gt;first); } else { f2it = vFeatVec2.lower_bound(f1it-&gt;first); } } // Step 6 检查旋转直方图分布，剔除差异较大的匹配 if(mbCheckOrientation) { int ind1=-1; int ind2=-1; int ind3=-1; ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3); for(int i=0; i&lt;HISTO_LENGTH; i&#43;&#43;) { if(i==ind1 || i==ind2 || i==ind3) continue; for(size_t j=0, jend=rotHist[i].size(); j&lt;jend; j&#43;&#43;) { vpMatches12[rotHist[i][j]]=static_cast&lt;MapPoint*&gt;(NULL); nmatches--; } } } return nmatches; } ">
   <meta property="og:locale" content="en">
   <meta property="og:type" content="article">
     <meta property="article:section" content="posts">
     <meta property="article:published_time" content="2024-03-07T15:04:23+00:00">
     <meta property="article:modified_time" content="2024-03-07T15:04:23+00:00">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="图像特征点">
+<meta name="twitter:title" content="图像匹配">
 <meta name="twitter:description" content="1 BoW
 ORB_SLAM 使用 BoW 进行相似图像检索，在重定位、回环检测、参考关键帧跟踪过程中都有用到。BoW 是一种 K 叉树形式的分类树，在构造 K 叉树时，根据特征描述的相似性作为距离度量进行聚类，树的叶子节点被计为单词，每个单词使用特征点的聚类中心表示。在进行特征匹配时，根据特征点是否落在同一个叶子节点判断是否对应同一个单词，同时可以得到一个相似度得分。一般在进行图像特征匹配时会根据公共单词数量和最小的相似度得分判断图像之间的相似性。
 
@@ -128,7 +286,163 @@ L1  ，各维度的差值的绝对值求和
 ORB_SLAM 在对图像生成词向量时，会根据 levelsup 记录图像中的单词落在了某层的哪些分支，这样在进行单词匹配时，只需要查找对应分支而不是从根节点开始查找，提高查找效率。
 
 Reference:
-基于词袋模型的图像匹配 - Line&rsquo;s Blog">
+基于词袋模型的图像匹配 - Line&rsquo;s Blog
+Appendix:
+/*
+ * @brief 通过词袋，对关键帧的特征点进行跟踪，该函数用于闭环检测时两个关键帧间的特征点匹配
+ * @details 通过bow对pKF和F中的特征点进行快速匹配（不属于同一node的特征点直接跳过匹配） 
+ * 对属于同一node的特征点通过描述子距离进行匹配 
+ * 通过距离阈值、比例阈值和角度投票进行剔除误匹配
+ * @param  pKF1               KeyFrame1
+ * @param  pKF2               KeyFrame2
+ * @param  vpMatches12        pKF2中与pKF1匹配的MapPoint，vpMatches12[i]表示匹配的地图点，null表示没有匹配，i表示匹配的pKF1 特征点索引
+ * @return                    成功匹配的数量
+ */
+int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector&lt;MapPoint *&gt; &amp;vpMatches12)
+{
+    // Step 1 分别取出两个关键帧的特征点、BoW 向量、地图点、描述子
+    const vector&lt;cv::KeyPoint&gt; &amp;vKeysUn1 = pKF1-&gt;mvKeysUn;
+    const DBoW2::FeatureVector &amp;vFeatVec1 = pKF1-&gt;mFeatVec;
+    const vector&lt;MapPoint*&gt; vpMapPoints1 = pKF1-&gt;GetMapPointMatches();
+    const cv::Mat &amp;Descriptors1 = pKF1-&gt;mDescriptors;
+
+    const vector&lt;cv::KeyPoint&gt; &amp;vKeysUn2 = pKF2-&gt;mvKeysUn;
+    const DBoW2::FeatureVector &amp;vFeatVec2 = pKF2-&gt;mFeatVec;
+    const vector&lt;MapPoint*&gt; vpMapPoints2 = pKF2-&gt;GetMapPointMatches();
+    const cv::Mat &amp;Descriptors2 = pKF2-&gt;mDescriptors;
+
+    // 保存匹配结果
+    vpMatches12 = vector&lt;MapPoint*&gt;(vpMapPoints1.size(),static_cast&lt;MapPoint*&gt;(NULL));
+    vector&lt;bool&gt; vbMatched2(vpMapPoints2.size(),false);
+
+    // Step 2 构建旋转直方图，HISTO_LENGTH = 30
+    vector&lt;int&gt; rotHist[HISTO_LENGTH];
+    for(int i=0;i&lt;HISTO_LENGTH;i&#43;&#43;)
+        rotHist[i].reserve(500);
+
+    //! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码   
+    const float factor = HISTO_LENGTH/360.0f;
+
+    int nmatches = 0;
+
+    DBoW2::FeatureVector::const_iterator f1it = vFeatVec1.begin();
+    DBoW2::FeatureVector::const_iterator f2it = vFeatVec2.begin();
+    DBoW2::FeatureVector::const_iterator f1end = vFeatVec1.end();
+    DBoW2::FeatureVector::const_iterator f2end = vFeatVec2.end();
+
+    while(f1it != f1end &amp;&amp; f2it != f2end)
+    {
+        // Step 3 开始遍历，分别取出属于同一node的特征点(只有属于同一node，才有可能是匹配点)
+        if(f1it-&gt;first == f2it-&gt;first)
+        {
+            // 遍历KF中属于该node的特征点
+            for(size_t i1=0, iend1=f1it-&gt;second.size(); i1&lt;iend1; i1&#43;&#43;)
+            {
+                const size_t idx1 = f1it-&gt;second[i1];
+
+                MapPoint* pMP1 = vpMapPoints1[idx1];
+                if(!pMP1)
+                    continue;
+                if(pMP1-&gt;isBad())
+                    continue;
+
+                const cv::Mat &amp;d1 = Descriptors1.row(idx1);
+
+                int bestDist1=256;
+                int bestIdx2 =-1 ;
+                int bestDist2=256;
+
+                // Step 4 遍历KF2中属于该node的特征点，找到了最优及次优匹配点
+                for(size_t i2=0, iend2=f2it-&gt;second.size(); i2&lt;iend2; i2&#43;&#43;)
+                {
+                    const size_t idx2 = f2it-&gt;second[i2];
+
+                    MapPoint* pMP2 = vpMapPoints2[idx2];
+
+                    // 如果已经有匹配的点，或者遍历到的特征点对应的地图点无效
+                    if(vbMatched2[idx2] || !pMP2)
+                        continue;
+
+                    if(pMP2-&gt;isBad())
+                        continue;
+
+                    const cv::Mat &amp;d2 = Descriptors2.row(idx2);
+
+                    int dist = DescriptorDistance(d1,d2);
+
+                    if(dist&lt;bestDist1)
+                    {
+                        bestDist2=bestDist1;
+                        bestDist1=dist;
+                        bestIdx2=idx2;
+                    }
+                    else if(dist&lt;bestDist2)
+                    {
+                        bestDist2=dist;
+                    }
+                }
+
+                // Step 5 对匹配结果进行检查，满足阈值、最优/次优比例，记录旋转直方图信息
+                if(bestDist1&lt;TH_LOW)
+                {
+                    if(static_cast&lt;float&gt;(bestDist1)&lt;mfNNratio*static_cast&lt;float&gt;(bestDist2))
+                    {
+                        vpMatches12[idx1]=vpMapPoints2[bestIdx2];
+                        vbMatched2[bestIdx2]=true;
+
+                        if(mbCheckOrientation)
+                        {
+                            float rot = vKeysUn1[idx1].angle-vKeysUn2[bestIdx2].angle;
+                            if(rot&lt;0.0)
+                                rot&#43;=360.0f;
+                            int bin = round(rot*factor);
+                            if(bin==HISTO_LENGTH)
+                                bin=0;
+                            assert(bin&gt;=0 &amp;&amp; bin&lt;HISTO_LENGTH);
+                            rotHist[bin].push_back(idx1);
+                        }
+                        nmatches&#43;&#43;;
+                    }
+                }
+            }
+
+            f1it&#43;&#43;;
+            f2it&#43;&#43;;
+        }
+        else if(f1it-&gt;first &lt; f2it-&gt;first)
+        {
+            f1it = vFeatVec1.lower_bound(f2it-&gt;first);
+        }
+        else
+        {
+            f2it = vFeatVec2.lower_bound(f1it-&gt;first);
+        }
+    }
+
+    // Step 6 检查旋转直方图分布，剔除差异较大的匹配
+    if(mbCheckOrientation)
+    {
+        int ind1=-1;
+        int ind2=-1;
+        int ind3=-1;
+
+        ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3);
+
+        for(int i=0; i&lt;HISTO_LENGTH; i&#43;&#43;)
+        {
+            if(i==ind1 || i==ind2 || i==ind3)
+                continue;
+            for(size_t j=0, jend=rotHist[i].size(); j&lt;jend; j&#43;&#43;)
+            {
+                vpMatches12[rotHist[i][j]]=static_cast&lt;MapPoint*&gt;(NULL);
+                nmatches--;
+            }
+        }
+    }
+
+    return nmatches;
+}
+">
 
 
 <script type="application/ld+json">
@@ -145,7 +459,7 @@ Reference:
     {
       "@type": "ListItem",
       "position":  2 ,
-      "name": "图像特征点",
+      "name": "图像匹配",
       "item": "https://zhouwuxiong.github.io/posts/image_match/"
     }
   ]
@@ -155,14 +469,14 @@ Reference:
 {
   "@context": "https://schema.org",
   "@type": "BlogPosting",
-  "headline": "图像特征点",
-  "name": "图像特征点",
-  "description": "1 BoW ORB_SLAM 使用 BoW 进行相似图像检索，在重定位、回环检测、参考关键帧跟踪过程中都有用到。BoW 是一种 K 叉树形式的分类树，在构造 K 叉树时，根据特征描述的相似性作为距离度量进行聚类，树的叶子节点被计为单词，每个单词使用特征点的聚类中心表示。在进行特征匹配时，根据特征点是否落在同一个叶子节点判断是否对应同一个单词，同时可以得到一个相似度得分。一般在进行图像特征匹配时会根据公共单词数量和最小的相似度得分判断图像之间的相似性。 1.1 TF-IDF TF（Term Frequency），指在单帧中某个单词的频次，频次高，权重大 IDF（Inverse Document Frequency），某个单词在词典中出现的频次，频次越低，则辨识度越高，相应权重 IDF 越大 最终 BoW 的权重是 TF*IDF ，每个单词都有自己的权重。\n1.2 正向索引 再计算BoW时，每帧图像会记录一个正向索引表，记录在kd树某一层，命中的节点集合，以及节点中的特征点，用于加速两帧图像之间的特征点匹配。\n1.3 逆向索引 orb-slam 中维护了一个关键帧数据库，其中有一个单词的逆向索引表，其记录了包含这个单词的关键帧和权重，用于快速查找匹配关键帧。\n1.4 相似性对量 L1 ，各维度的差值的绝对值求和 余弦相似度 ，向量夹角 1.5 levelsup ORB_SLAM 在对图像生成词向量时，会根据 levelsup 记录图像中的单词落在了某层的哪些分支，这样在进行单词匹配时，只需要查找对应分支而不是从根节点开始查找，提高查找效率。 Reference: 基于词袋模型的图像匹配 - Line\u0026rsquo;s Blog\n",
+  "headline": "图像匹配",
+  "name": "图像匹配",
+  "description": "1 BoW ORB_SLAM 使用 BoW 进行相似图像检索，在重定位、回环检测、参考关键帧跟踪过程中都有用到。BoW 是一种 K 叉树形式的分类树，在构造 K 叉树时，根据特征描述的相似性作为距离度量进行聚类，树的叶子节点被计为单词，每个单词使用特征点的聚类中心表示。在进行特征匹配时，根据特征点是否落在同一个叶子节点判断是否对应同一个单词，同时可以得到一个相似度得分。一般在进行图像特征匹配时会根据公共单词数量和最小的相似度得分判断图像之间的相似性。 1.1 TF-IDF TF（Term Frequency），指在单帧中某个单词的频次，频次高，权重大 IDF（Inverse Document Frequency），某个单词在词典中出现的频次，频次越低，则辨识度越高，相应权重 IDF 越大 最终 BoW 的权重是 TF*IDF ，每个单词都有自己的权重。\n1.2 正向索引 再计算BoW时，每帧图像会记录一个正向索引表，记录在kd树某一层，命中的节点集合，以及节点中的特征点，用于加速两帧图像之间的特征点匹配。\n1.3 逆向索引 orb-slam 中维护了一个关键帧数据库，其中有一个单词的逆向索引表，其记录了包含这个单词的关键帧和权重，用于快速查找匹配关键帧。\n1.4 相似性对量 L1 ，各维度的差值的绝对值求和 余弦相似度 ，向量夹角 1.5 levelsup ORB_SLAM 在对图像生成词向量时，会根据 levelsup 记录图像中的单词落在了某层的哪些分支，这样在进行单词匹配时，只需要查找对应分支而不是从根节点开始查找，提高查找效率。 Reference: 基于词袋模型的图像匹配 - Line\u0026rsquo;s Blog\nAppendix:\n/* * @brief 通过词袋，对关键帧的特征点进行跟踪，该函数用于闭环检测时两个关键帧间的特征点匹配 * @details 通过bow对pKF和F中的特征点进行快速匹配（不属于同一node的特征点直接跳过匹配） * 对属于同一node的特征点通过描述子距离进行匹配 * 通过距离阈值、比例阈值和角度投票进行剔除误匹配 * @param pKF1 KeyFrame1 * @param pKF2 KeyFrame2 * @param vpMatches12 pKF2中与pKF1匹配的MapPoint，vpMatches12[i]表示匹配的地图点，null表示没有匹配，i表示匹配的pKF1 特征点索引 * @return 成功匹配的数量 */ int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector\u0026lt;MapPoint *\u0026gt; \u0026amp;vpMatches12) { // Step 1 分别取出两个关键帧的特征点、BoW 向量、地图点、描述子 const vector\u0026lt;cv::KeyPoint\u0026gt; \u0026amp;vKeysUn1 = pKF1-\u0026gt;mvKeysUn; const DBoW2::FeatureVector \u0026amp;vFeatVec1 = pKF1-\u0026gt;mFeatVec; const vector\u0026lt;MapPoint*\u0026gt; vpMapPoints1 = pKF1-\u0026gt;GetMapPointMatches(); const cv::Mat \u0026amp;Descriptors1 = pKF1-\u0026gt;mDescriptors; const vector\u0026lt;cv::KeyPoint\u0026gt; \u0026amp;vKeysUn2 = pKF2-\u0026gt;mvKeysUn; const DBoW2::FeatureVector \u0026amp;vFeatVec2 = pKF2-\u0026gt;mFeatVec; const vector\u0026lt;MapPoint*\u0026gt; vpMapPoints2 = pKF2-\u0026gt;GetMapPointMatches(); const cv::Mat \u0026amp;Descriptors2 = pKF2-\u0026gt;mDescriptors; // 保存匹配结果 vpMatches12 = vector\u0026lt;MapPoint*\u0026gt;(vpMapPoints1.size(),static_cast\u0026lt;MapPoint*\u0026gt;(NULL)); vector\u0026lt;bool\u0026gt; vbMatched2(vpMapPoints2.size(),false); // Step 2 构建旋转直方图，HISTO_LENGTH = 30 vector\u0026lt;int\u0026gt; rotHist[HISTO_LENGTH]; for(int i=0;i\u0026lt;HISTO_LENGTH;i++) rotHist[i].reserve(500); //! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码 const float factor = HISTO_LENGTH/360.0f; int nmatches = 0; DBoW2::FeatureVector::const_iterator f1it = vFeatVec1.begin(); DBoW2::FeatureVector::const_iterator f2it = vFeatVec2.begin(); DBoW2::FeatureVector::const_iterator f1end = vFeatVec1.end(); DBoW2::FeatureVector::const_iterator f2end = vFeatVec2.end(); while(f1it != f1end \u0026amp;\u0026amp; f2it != f2end) { // Step 3 开始遍历，分别取出属于同一node的特征点(只有属于同一node，才有可能是匹配点) if(f1it-\u0026gt;first == f2it-\u0026gt;first) { // 遍历KF中属于该node的特征点 for(size_t i1=0, iend1=f1it-\u0026gt;second.size(); i1\u0026lt;iend1; i1++) { const size_t idx1 = f1it-\u0026gt;second[i1]; MapPoint* pMP1 = vpMapPoints1[idx1]; if(!pMP1) continue; if(pMP1-\u0026gt;isBad()) continue; const cv::Mat \u0026amp;d1 = Descriptors1.row(idx1); int bestDist1=256; int bestIdx2 =-1 ; int bestDist2=256; // Step 4 遍历KF2中属于该node的特征点，找到了最优及次优匹配点 for(size_t i2=0, iend2=f2it-\u0026gt;second.size(); i2\u0026lt;iend2; i2++) { const size_t idx2 = f2it-\u0026gt;second[i2]; MapPoint* pMP2 = vpMapPoints2[idx2]; // 如果已经有匹配的点，或者遍历到的特征点对应的地图点无效 if(vbMatched2[idx2] || !pMP2) continue; if(pMP2-\u0026gt;isBad()) continue; const cv::Mat \u0026amp;d2 = Descriptors2.row(idx2); int dist = DescriptorDistance(d1,d2); if(dist\u0026lt;bestDist1) { bestDist2=bestDist1; bestDist1=dist; bestIdx2=idx2; } else if(dist\u0026lt;bestDist2) { bestDist2=dist; } } // Step 5 对匹配结果进行检查，满足阈值、最优/次优比例，记录旋转直方图信息 if(bestDist1\u0026lt;TH_LOW) { if(static_cast\u0026lt;float\u0026gt;(bestDist1)\u0026lt;mfNNratio*static_cast\u0026lt;float\u0026gt;(bestDist2)) { vpMatches12[idx1]=vpMapPoints2[bestIdx2]; vbMatched2[bestIdx2]=true; if(mbCheckOrientation) { float rot = vKeysUn1[idx1].angle-vKeysUn2[bestIdx2].angle; if(rot\u0026lt;0.0) rot+=360.0f; int bin = round(rot*factor); if(bin==HISTO_LENGTH) bin=0; assert(bin\u0026gt;=0 \u0026amp;\u0026amp; bin\u0026lt;HISTO_LENGTH); rotHist[bin].push_back(idx1); } nmatches++; } } } f1it++; f2it++; } else if(f1it-\u0026gt;first \u0026lt; f2it-\u0026gt;first) { f1it = vFeatVec1.lower_bound(f2it-\u0026gt;first); } else { f2it = vFeatVec2.lower_bound(f1it-\u0026gt;first); } } // Step 6 检查旋转直方图分布，剔除差异较大的匹配 if(mbCheckOrientation) { int ind1=-1; int ind2=-1; int ind3=-1; ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3); for(int i=0; i\u0026lt;HISTO_LENGTH; i++) { if(i==ind1 || i==ind2 || i==ind3) continue; for(size_t j=0, jend=rotHist[i].size(); j\u0026lt;jend; j++) { vpMatches12[rotHist[i][j]]=static_cast\u0026lt;MapPoint*\u0026gt;(NULL); nmatches--; } } } return nmatches; } ",
   "keywords": [
     
   ],
-  "articleBody": "1 BoW ORB_SLAM 使用 BoW 进行相似图像检索，在重定位、回环检测、参考关键帧跟踪过程中都有用到。BoW 是一种 K 叉树形式的分类树，在构造 K 叉树时，根据特征描述的相似性作为距离度量进行聚类，树的叶子节点被计为单词，每个单词使用特征点的聚类中心表示。在进行特征匹配时，根据特征点是否落在同一个叶子节点判断是否对应同一个单词，同时可以得到一个相似度得分。一般在进行图像特征匹配时会根据公共单词数量和最小的相似度得分判断图像之间的相似性。 1.1 TF-IDF TF（Term Frequency），指在单帧中某个单词的频次，频次高，权重大 IDF（Inverse Document Frequency），某个单词在词典中出现的频次，频次越低，则辨识度越高，相应权重 IDF 越大 最终 BoW 的权重是 TF*IDF ，每个单词都有自己的权重。\n1.2 正向索引 再计算BoW时，每帧图像会记录一个正向索引表，记录在kd树某一层，命中的节点集合，以及节点中的特征点，用于加速两帧图像之间的特征点匹配。\n1.3 逆向索引 orb-slam 中维护了一个关键帧数据库，其中有一个单词的逆向索引表，其记录了包含这个单词的关键帧和权重，用于快速查找匹配关键帧。\n1.4 相似性对量 L1 ，各维度的差值的绝对值求和 余弦相似度 ，向量夹角 1.5 levelsup ORB_SLAM 在对图像生成词向量时，会根据 levelsup 记录图像中的单词落在了某层的哪些分支，这样在进行单词匹配时，只需要查找对应分支而不是从根节点开始查找，提高查找效率。 Reference: 基于词袋模型的图像匹配 - Line’s Blog\n",
-  "wordCount" : "49",
+  "articleBody": "1 BoW ORB_SLAM 使用 BoW 进行相似图像检索，在重定位、回环检测、参考关键帧跟踪过程中都有用到。BoW 是一种 K 叉树形式的分类树，在构造 K 叉树时，根据特征描述的相似性作为距离度量进行聚类，树的叶子节点被计为单词，每个单词使用特征点的聚类中心表示。在进行特征匹配时，根据特征点是否落在同一个叶子节点判断是否对应同一个单词，同时可以得到一个相似度得分。一般在进行图像特征匹配时会根据公共单词数量和最小的相似度得分判断图像之间的相似性。 1.1 TF-IDF TF（Term Frequency），指在单帧中某个单词的频次，频次高，权重大 IDF（Inverse Document Frequency），某个单词在词典中出现的频次，频次越低，则辨识度越高，相应权重 IDF 越大 最终 BoW 的权重是 TF*IDF ，每个单词都有自己的权重。\n1.2 正向索引 再计算BoW时，每帧图像会记录一个正向索引表，记录在kd树某一层，命中的节点集合，以及节点中的特征点，用于加速两帧图像之间的特征点匹配。\n1.3 逆向索引 orb-slam 中维护了一个关键帧数据库，其中有一个单词的逆向索引表，其记录了包含这个单词的关键帧和权重，用于快速查找匹配关键帧。\n1.4 相似性对量 L1 ，各维度的差值的绝对值求和 余弦相似度 ，向量夹角 1.5 levelsup ORB_SLAM 在对图像生成词向量时，会根据 levelsup 记录图像中的单词落在了某层的哪些分支，这样在进行单词匹配时，只需要查找对应分支而不是从根节点开始查找，提高查找效率。 Reference: 基于词袋模型的图像匹配 - Line’s Blog\nAppendix:\n/* * @brief 通过词袋，对关键帧的特征点进行跟踪，该函数用于闭环检测时两个关键帧间的特征点匹配 * @details 通过bow对pKF和F中的特征点进行快速匹配（不属于同一node的特征点直接跳过匹配） * 对属于同一node的特征点通过描述子距离进行匹配 * 通过距离阈值、比例阈值和角度投票进行剔除误匹配 * @param pKF1 KeyFrame1 * @param pKF2 KeyFrame2 * @param vpMatches12 pKF2中与pKF1匹配的MapPoint，vpMatches12[i]表示匹配的地图点，null表示没有匹配，i表示匹配的pKF1 特征点索引 * @return 成功匹配的数量 */ int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector\u003cMapPoint *\u003e \u0026vpMatches12) { // Step 1 分别取出两个关键帧的特征点、BoW 向量、地图点、描述子 const vector\u003ccv::KeyPoint\u003e \u0026vKeysUn1 = pKF1-\u003emvKeysUn; const DBoW2::FeatureVector \u0026vFeatVec1 = pKF1-\u003emFeatVec; const vector\u003cMapPoint*\u003e vpMapPoints1 = pKF1-\u003eGetMapPointMatches(); const cv::Mat \u0026Descriptors1 = pKF1-\u003emDescriptors; const vector\u003ccv::KeyPoint\u003e \u0026vKeysUn2 = pKF2-\u003emvKeysUn; const DBoW2::FeatureVector \u0026vFeatVec2 = pKF2-\u003emFeatVec; const vector\u003cMapPoint*\u003e vpMapPoints2 = pKF2-\u003eGetMapPointMatches(); const cv::Mat \u0026Descriptors2 = pKF2-\u003emDescriptors; // 保存匹配结果 vpMatches12 = vector\u003cMapPoint*\u003e(vpMapPoints1.size(),static_cast\u003cMapPoint*\u003e(NULL)); vector\u003cbool\u003e vbMatched2(vpMapPoints2.size(),false); // Step 2 构建旋转直方图，HISTO_LENGTH = 30 vector\u003cint\u003e rotHist[HISTO_LENGTH]; for(int i=0;i\u003cHISTO_LENGTH;i++) rotHist[i].reserve(500); //! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码 const float factor = HISTO_LENGTH/360.0f; int nmatches = 0; DBoW2::FeatureVector::const_iterator f1it = vFeatVec1.begin(); DBoW2::FeatureVector::const_iterator f2it = vFeatVec2.begin(); DBoW2::FeatureVector::const_iterator f1end = vFeatVec1.end(); DBoW2::FeatureVector::const_iterator f2end = vFeatVec2.end(); while(f1it != f1end \u0026\u0026 f2it != f2end) { // Step 3 开始遍历，分别取出属于同一node的特征点(只有属于同一node，才有可能是匹配点) if(f1it-\u003efirst == f2it-\u003efirst) { // 遍历KF中属于该node的特征点 for(size_t i1=0, iend1=f1it-\u003esecond.size(); i1\u003ciend1; i1++) { const size_t idx1 = f1it-\u003esecond[i1]; MapPoint* pMP1 = vpMapPoints1[idx1]; if(!pMP1) continue; if(pMP1-\u003eisBad()) continue; const cv::Mat \u0026d1 = Descriptors1.row(idx1); int bestDist1=256; int bestIdx2 =-1 ; int bestDist2=256; // Step 4 遍历KF2中属于该node的特征点，找到了最优及次优匹配点 for(size_t i2=0, iend2=f2it-\u003esecond.size(); i2\u003ciend2; i2++) { const size_t idx2 = f2it-\u003esecond[i2]; MapPoint* pMP2 = vpMapPoints2[idx2]; // 如果已经有匹配的点，或者遍历到的特征点对应的地图点无效 if(vbMatched2[idx2] || !pMP2) continue; if(pMP2-\u003eisBad()) continue; const cv::Mat \u0026d2 = Descriptors2.row(idx2); int dist = DescriptorDistance(d1,d2); if(dist\u003cbestDist1) { bestDist2=bestDist1; bestDist1=dist; bestIdx2=idx2; } else if(dist\u003cbestDist2) { bestDist2=dist; } } // Step 5 对匹配结果进行检查，满足阈值、最优/次优比例，记录旋转直方图信息 if(bestDist1\u003cTH_LOW) { if(static_cast\u003cfloat\u003e(bestDist1)\u003cmfNNratio*static_cast\u003cfloat\u003e(bestDist2)) { vpMatches12[idx1]=vpMapPoints2[bestIdx2]; vbMatched2[bestIdx2]=true; if(mbCheckOrientation) { float rot = vKeysUn1[idx1].angle-vKeysUn2[bestIdx2].angle; if(rot\u003c0.0) rot+=360.0f; int bin = round(rot*factor); if(bin==HISTO_LENGTH) bin=0; assert(bin\u003e=0 \u0026\u0026 bin\u003cHISTO_LENGTH); rotHist[bin].push_back(idx1); } nmatches++; } } } f1it++; f2it++; } else if(f1it-\u003efirst \u003c f2it-\u003efirst) { f1it = vFeatVec1.lower_bound(f2it-\u003efirst); } else { f2it = vFeatVec2.lower_bound(f1it-\u003efirst); } } // Step 6 检查旋转直方图分布，剔除差异较大的匹配 if(mbCheckOrientation) { int ind1=-1; int ind2=-1; int ind3=-1; ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3); for(int i=0; i\u003cHISTO_LENGTH; i++) { if(i==ind1 || i==ind2 || i==ind3) continue; for(size_t j=0, jend=rotHist[i].size(); j\u003cjend; j++) { vpMatches12[rotHist[i][j]]=static_cast\u003cMapPoint*\u003e(NULL); nmatches--; } } } return nmatches; } ",
+  "wordCount" : "371",
   "inLanguage": "en",
   "datePublished": "2024-03-07T15:04:23Z",
   "dateModified": "2024-03-07T15:04:23Z",
@@ -267,7 +581,7 @@ Reference:
   <header class="post-header">
     
     <h1 class="post-title entry-hint-parent">
-      图像特征点
+      图像匹配
     </h1>
     <div class="post-meta"><span title='2024-03-07 15:04:23 +0000 UTC'>March 7, 2024</span>
 
@@ -294,7 +608,162 @@ IDF（Inverse Document Frequency），某个单词在词典中出现的频次，
 <img alt="2-Image_Match.png" loading="lazy" src="2-Image_Match.png"></p>
 <p>Reference:
 <a href="https://xhy3054.github.io/2019/04/19/2019-04-19-bow/">基于词袋模型的图像匹配 - Line&rsquo;s Blog</a></p>
-
+<p>Appendix:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * @brief 通过词袋，对关键帧的特征点进行跟踪，该函数用于闭环检测时两个关键帧间的特征点匹配
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * @details 通过bow对pKF和F中的特征点进行快速匹配（不属于同一node的特征点直接跳过匹配） 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * 对属于同一node的特征点通过描述子距离进行匹配 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * 通过距离阈值、比例阈值和角度投票进行剔除误匹配
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * @param  pKF1               KeyFrame1
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * @param  pKF2               KeyFrame2
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * @param  vpMatches12        pKF2中与pKF1匹配的MapPoint，vpMatches12[i]表示匹配的地图点，null表示没有匹配，i表示匹配的pKF1 特征点索引
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * @return                    成功匹配的数量
+</span></span></span><span class="line"><span class="cl"><span class="cm"> */</span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="n">ORBmatcher</span><span class="o">::</span><span class="n">SearchByBoW</span><span class="p">(</span><span class="n">KeyFrame</span> <span class="o">*</span><span class="n">pKF1</span><span class="p">,</span> <span class="n">KeyFrame</span> <span class="o">*</span><span class="n">pKF2</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">MapPoint</span> <span class="o">*&gt;</span> <span class="o">&amp;</span><span class="n">vpMatches12</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Step 1 分别取出两个关键帧的特征点、BoW 向量、地图点、描述子
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">const</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">KeyPoint</span><span class="o">&gt;</span> <span class="o">&amp;</span><span class="n">vKeysUn1</span> <span class="o">=</span> <span class="n">pKF1</span><span class="o">-&gt;</span><span class="n">mvKeysUn</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="n">DBoW2</span><span class="o">::</span><span class="n">FeatureVector</span> <span class="o">&amp;</span><span class="n">vFeatVec1</span> <span class="o">=</span> <span class="n">pKF1</span><span class="o">-&gt;</span><span class="n">mFeatVec</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">MapPoint</span><span class="o">*&gt;</span> <span class="n">vpMapPoints1</span> <span class="o">=</span> <span class="n">pKF1</span><span class="o">-&gt;</span><span class="n">GetMapPointMatches</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="o">&amp;</span><span class="n">Descriptors1</span> <span class="o">=</span> <span class="n">pKF1</span><span class="o">-&gt;</span><span class="n">mDescriptors</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">KeyPoint</span><span class="o">&gt;</span> <span class="o">&amp;</span><span class="n">vKeysUn2</span> <span class="o">=</span> <span class="n">pKF2</span><span class="o">-&gt;</span><span class="n">mvKeysUn</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="n">DBoW2</span><span class="o">::</span><span class="n">FeatureVector</span> <span class="o">&amp;</span><span class="n">vFeatVec2</span> <span class="o">=</span> <span class="n">pKF2</span><span class="o">-&gt;</span><span class="n">mFeatVec</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">MapPoint</span><span class="o">*&gt;</span> <span class="n">vpMapPoints2</span> <span class="o">=</span> <span class="n">pKF2</span><span class="o">-&gt;</span><span class="n">GetMapPointMatches</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="o">&amp;</span><span class="n">Descriptors2</span> <span class="o">=</span> <span class="n">pKF2</span><span class="o">-&gt;</span><span class="n">mDescriptors</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 保存匹配结果
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">vpMatches12</span> <span class="o">=</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">MapPoint</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">vpMapPoints1</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">MapPoint</span><span class="o">*&gt;</span><span class="p">(</span><span class="nb">NULL</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span> <span class="n">vbMatched2</span><span class="p">(</span><span class="n">vpMapPoints2</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span><span class="nb">false</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Step 2 构建旋转直方图，HISTO_LENGTH = 30
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">rotHist</span><span class="p">[</span><span class="n">HISTO_LENGTH</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="n">HISTO_LENGTH</span><span class="p">;</span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">rotHist</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">reserve</span><span class="p">(</span><span class="mi">500</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">//! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码   
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">const</span> <span class="kt">float</span> <span class="n">factor</span> <span class="o">=</span> <span class="n">HISTO_LENGTH</span><span class="o">/</span><span class="mf">360.0f</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">nmatches</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">DBoW2</span><span class="o">::</span><span class="n">FeatureVector</span><span class="o">::</span><span class="n">const_iterator</span> <span class="n">f1it</span> <span class="o">=</span> <span class="n">vFeatVec1</span><span class="p">.</span><span class="n">begin</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="n">DBoW2</span><span class="o">::</span><span class="n">FeatureVector</span><span class="o">::</span><span class="n">const_iterator</span> <span class="n">f2it</span> <span class="o">=</span> <span class="n">vFeatVec2</span><span class="p">.</span><span class="n">begin</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="n">DBoW2</span><span class="o">::</span><span class="n">FeatureVector</span><span class="o">::</span><span class="n">const_iterator</span> <span class="n">f1end</span> <span class="o">=</span> <span class="n">vFeatVec1</span><span class="p">.</span><span class="n">end</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="n">DBoW2</span><span class="o">::</span><span class="n">FeatureVector</span><span class="o">::</span><span class="n">const_iterator</span> <span class="n">f2end</span> <span class="o">=</span> <span class="n">vFeatVec2</span><span class="p">.</span><span class="n">end</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">while</span><span class="p">(</span><span class="n">f1it</span> <span class="o">!=</span> <span class="n">f1end</span> <span class="o">&amp;&amp;</span> <span class="n">f2it</span> <span class="o">!=</span> <span class="n">f2end</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// Step 3 开始遍历，分别取出属于同一node的特征点(只有属于同一node，才有可能是匹配点)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">if</span><span class="p">(</span><span class="n">f1it</span><span class="o">-&gt;</span><span class="n">first</span> <span class="o">==</span> <span class="n">f2it</span><span class="o">-&gt;</span><span class="n">first</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="c1">// 遍历KF中属于该node的特征点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>            <span class="k">for</span><span class="p">(</span><span class="n">size_t</span> <span class="n">i1</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">iend1</span><span class="o">=</span><span class="n">f1it</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">.</span><span class="n">size</span><span class="p">();</span> <span class="n">i1</span><span class="o">&lt;</span><span class="n">iend1</span><span class="p">;</span> <span class="n">i1</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="k">const</span> <span class="n">size_t</span> <span class="n">idx1</span> <span class="o">=</span> <span class="n">f1it</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">[</span><span class="n">i1</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                <span class="n">MapPoint</span><span class="o">*</span> <span class="n">pMP1</span> <span class="o">=</span> <span class="n">vpMapPoints1</span><span class="p">[</span><span class="n">idx1</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">pMP1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">continue</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span><span class="p">(</span><span class="n">pMP1</span><span class="o">-&gt;</span><span class="n">isBad</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">continue</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                <span class="k">const</span> <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="o">&amp;</span><span class="n">d1</span> <span class="o">=</span> <span class="n">Descriptors1</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">idx1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                <span class="kt">int</span> <span class="n">bestDist1</span><span class="o">=</span><span class="mi">256</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                <span class="kt">int</span> <span class="n">bestIdx2</span> <span class="o">=-</span><span class="mi">1</span> <span class="p">;</span>
+</span></span><span class="line"><span class="cl">                <span class="kt">int</span> <span class="n">bestDist2</span><span class="o">=</span><span class="mi">256</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                <span class="c1">// Step 4 遍历KF2中属于该node的特征点，找到了最优及次优匹配点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="k">for</span><span class="p">(</span><span class="n">size_t</span> <span class="n">i2</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">iend2</span><span class="o">=</span><span class="n">f2it</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">.</span><span class="n">size</span><span class="p">();</span> <span class="n">i2</span><span class="o">&lt;</span><span class="n">iend2</span><span class="p">;</span> <span class="n">i2</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">const</span> <span class="n">size_t</span> <span class="n">idx2</span> <span class="o">=</span> <span class="n">f2it</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">[</span><span class="n">i2</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                    <span class="n">MapPoint</span><span class="o">*</span> <span class="n">pMP2</span> <span class="o">=</span> <span class="n">vpMapPoints2</span><span class="p">[</span><span class="n">idx2</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                    <span class="c1">// 如果已经有匹配的点，或者遍历到的特征点对应的地图点无效
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                    <span class="k">if</span><span class="p">(</span><span class="n">vbMatched2</span><span class="p">[</span><span class="n">idx2</span><span class="p">]</span> <span class="o">||</span> <span class="o">!</span><span class="n">pMP2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                        <span class="k">continue</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                    <span class="k">if</span><span class="p">(</span><span class="n">pMP2</span><span class="o">-&gt;</span><span class="n">isBad</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">                        <span class="k">continue</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                    <span class="k">const</span> <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="o">&amp;</span><span class="n">d2</span> <span class="o">=</span> <span class="n">Descriptors2</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">idx2</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                    <span class="kt">int</span> <span class="n">dist</span> <span class="o">=</span> <span class="n">DescriptorDistance</span><span class="p">(</span><span class="n">d1</span><span class="p">,</span><span class="n">d2</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                    <span class="k">if</span><span class="p">(</span><span class="n">dist</span><span class="o">&lt;</span><span class="n">bestDist1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                    <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">bestDist2</span><span class="o">=</span><span class="n">bestDist1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">bestDist1</span><span class="o">=</span><span class="n">dist</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">bestIdx2</span><span class="o">=</span><span class="n">idx2</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">else</span> <span class="nf">if</span><span class="p">(</span><span class="n">dist</span><span class="o">&lt;</span><span class="n">bestDist2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                    <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">bestDist2</span><span class="o">=</span><span class="n">dist</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">                <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                <span class="c1">// Step 5 对匹配结果进行检查，满足阈值、最优/次优比例，记录旋转直方图信息
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="k">if</span><span class="p">(</span><span class="n">bestDist1</span><span class="o">&lt;</span><span class="n">TH_LOW</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">if</span><span class="p">(</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">bestDist1</span><span class="p">)</span><span class="o">&lt;</span><span class="n">mfNNratio</span><span class="o">*</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">bestDist2</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">                    <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">vpMatches12</span><span class="p">[</span><span class="n">idx1</span><span class="p">]</span><span class="o">=</span><span class="n">vpMapPoints2</span><span class="p">[</span><span class="n">bestIdx2</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">vbMatched2</span><span class="p">[</span><span class="n">bestIdx2</span><span class="p">]</span><span class="o">=</span><span class="nb">true</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                        <span class="k">if</span><span class="p">(</span><span class="n">mbCheckOrientation</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                        <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                            <span class="kt">float</span> <span class="n">rot</span> <span class="o">=</span> <span class="n">vKeysUn1</span><span class="p">[</span><span class="n">idx1</span><span class="p">].</span><span class="n">angle</span><span class="o">-</span><span class="n">vKeysUn2</span><span class="p">[</span><span class="n">bestIdx2</span><span class="p">].</span><span class="n">angle</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                            <span class="k">if</span><span class="p">(</span><span class="n">rot</span><span class="o">&lt;</span><span class="mf">0.0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                                <span class="n">rot</span><span class="o">+=</span><span class="mf">360.0f</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                            <span class="kt">int</span> <span class="n">bin</span> <span class="o">=</span> <span class="n">round</span><span class="p">(</span><span class="n">rot</span><span class="o">*</span><span class="n">factor</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                            <span class="k">if</span><span class="p">(</span><span class="n">bin</span><span class="o">==</span><span class="n">HISTO_LENGTH</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                                <span class="n">bin</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                            <span class="n">assert</span><span class="p">(</span><span class="n">bin</span><span class="o">&gt;=</span><span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">bin</span><span class="o">&lt;</span><span class="n">HISTO_LENGTH</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                            <span class="n">rotHist</span><span class="p">[</span><span class="n">bin</span><span class="p">].</span><span class="n">push_back</span><span class="p">(</span><span class="n">idx1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">nmatches</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">                <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">            <span class="n">f1it</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="n">f2it</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">else</span> <span class="nf">if</span><span class="p">(</span><span class="n">f1it</span><span class="o">-&gt;</span><span class="n">first</span> <span class="o">&lt;</span> <span class="n">f2it</span><span class="o">-&gt;</span><span class="n">first</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="n">f1it</span> <span class="o">=</span> <span class="n">vFeatVec1</span><span class="p">.</span><span class="n">lower_bound</span><span class="p">(</span><span class="n">f2it</span><span class="o">-&gt;</span><span class="n">first</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">else</span>
+</span></span><span class="line"><span class="cl">        <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="n">f2it</span> <span class="o">=</span> <span class="n">vFeatVec2</span><span class="p">.</span><span class="n">lower_bound</span><span class="p">(</span><span class="n">f1it</span><span class="o">-&gt;</span><span class="n">first</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Step 6 检查旋转直方图分布，剔除差异较大的匹配
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">mbCheckOrientation</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">int</span> <span class="n">ind1</span><span class="o">=-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">int</span> <span class="n">ind2</span><span class="o">=-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">int</span> <span class="n">ind3</span><span class="o">=-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">ComputeThreeMaxima</span><span class="p">(</span><span class="n">rotHist</span><span class="p">,</span><span class="n">HISTO_LENGTH</span><span class="p">,</span><span class="n">ind1</span><span class="p">,</span><span class="n">ind2</span><span class="p">,</span><span class="n">ind3</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">&lt;</span><span class="n">HISTO_LENGTH</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="n">ind1</span> <span class="o">||</span> <span class="n">i</span><span class="o">==</span><span class="n">ind2</span> <span class="o">||</span> <span class="n">i</span><span class="o">==</span><span class="n">ind3</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="k">continue</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="k">for</span><span class="p">(</span><span class="n">size_t</span> <span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">jend</span><span class="o">=</span><span class="n">rotHist</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span><span class="p">();</span> <span class="n">j</span><span class="o">&lt;</span><span class="n">jend</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="n">vpMatches12</span><span class="p">[</span><span class="n">rotHist</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]]</span><span class="o">=</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">MapPoint</span><span class="o">*&gt;</span><span class="p">(</span><span class="nb">NULL</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="n">nmatches</span><span class="o">--</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">nmatches</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div>
 
   </div>
 

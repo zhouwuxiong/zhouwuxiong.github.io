@@ -2,6 +2,9 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
+    <loc>https://zhouwuxiong.github.io/posts/orb_slam2/</loc>
+    <lastmod>2024-03-07T15:04:23+00:00</lastmod>
+  </url><url>
     <loc>https://zhouwuxiong.github.io/</loc>
     <lastmod>2024-03-07T15:04:23+00:00</lastmod>
     <xhtml:link
@@ -26,10 +29,10 @@
     <loc>https://zhouwuxiong.github.io/posts/slam-%E4%B8%AD%E7%9A%84%E5%9F%BA%E7%A1%80%E6%95%B0%E5%AD%A6%E7%9F%A5%E8%AF%86/</loc>
     <lastmod>2024-03-07T15:04:23+00:00</lastmod>
   </url><url>
-    <loc>https://zhouwuxiong.github.io/posts/feature_match/</loc>
+    <loc>https://zhouwuxiong.github.io/posts/image_match/</loc>
     <lastmod>2024-03-07T15:04:23+00:00</lastmod>
   </url><url>
-    <loc>https://zhouwuxiong.github.io/posts/image_match/</loc>
+    <loc>https://zhouwuxiong.github.io/posts/feature_match/</loc>
     <lastmod>2024-03-07T15:04:23+00:00</lastmod>
   </url><url>
     <loc>https://zhouwuxiong.github.io/posts/slam-%E5%9F%BA%E7%A1%80/</loc>
