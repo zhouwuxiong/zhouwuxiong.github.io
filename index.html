@@ -190,18 +190,34 @@ document.addEventListener("DOMContentLoaded", function() {
     </h2>
   </header>
   <div class="entry-content">
-    <p>1 单目初始化 单目初始化分主要为4步：
-特征匹配 8点法多轮 ransac 求解，根据投影点到极线的距离选取最优结果 利用求解的位姿结果进行地图点三角化。然后去除深度为负、无限远点(距离太远估计的深度值不准确)、视差太小、重投影误差的点 Initializer::CheckRT。 根据计算重投影误差和视差选取最优的解。 Tips1 由于单初始化确定的相对位姿，没有一个确定的坐标系，所以两帧之间运动的正方向是不确定的，对于 F 矩阵由于R和t的方向运动方向不确定，所以其有4组合的解，但是对于 H 矩阵，因为基于平面投影转换，由于平面法向量的正负不确定，导致 H 矩阵的深度方向也是不确定的，所以其会有 8 种可能的解。ORB_SLAM 会根据重投影的内点数量选择最合适的组合。
+    <p>1 单目初始化 ORB_SLAM 的地图初始化主要分为 5 个过程。 第一步时根据特征点匹配选择匹配数量足够多的两帧图像作为初始图像， 第二步根据匹配特征点进行多轮 ransac 迭代，通过 8 点法求解基础矩阵和单应矩阵， 第三步利用初始位姿三角化地图点，并过滤一些不好的地图点主要包括 (距离太远的点，因为距离太远的点深度估计不准确， 重投影误差太大的点等等)。 第四步进行R，t的选取，做这一步的原因是由于单目初始化求的是一个相对位姿关系，没有一个固定的坐标系，所以其旋转、平移的正方向不确定，因此求解结果会存在多种运动组合。对于基础矩阵会有四种解，但是对于 H 矩阵会存在 8中解，因为单应矩阵是利用平面法向量做映射，它引入了平法向量的正负不确定性。除此之外基础矩阵还需要做平移量大小的判断，因为如果两帧之间的平移量太小，会导致深度计算的不准确，像素的误差会被无限放大到深度上，而且像素坐标是有分辨率极限的不是连续的，所以深度误差必定存在。 第五步构建地图点与之间的链接关系，并使用场景中值深度进行尺度归一化 第六步进行全局 BA 优化，优化完之后根据地图中地图点的深度中值做尺度归一化
+Tips1 由于单初始化确定的相对位姿，没有一个确定的坐标系，所以两帧之间运动的正方向是不确定的，对于 F 矩阵由于R和t的方向运动方向不确定，所以其有4组合的解，但是对于 H 矩阵，因为基于平面投影转换，由于平面法向量的正负不确定，导致 H 矩阵的深度方向也是不确定的，所以其会有 8 种可能的解。ORB_SLAM 会根据重投影的内点数量选择最合适的组合。
 Tips2 F 矩阵需要考虑纯旋转问题，因为纯旋转时无法准确的求出t，ORB_SLAM 使用所有3d点视差的中值来判断纯旋转，这样可以避免误选到动态特征点。
 2 回环检测 2.1 回环候选帧选取 ORB_SLAM 的回环候选帧选取主要分为图像相似度检测和组连续检测。
 图像相似度检测，当前帧与候选帧之间的公共单词数量和相似度得分要高于局部地图的最低得分。 组连续检测，需要有连续3帧的当前帧都和同一个组的候选帧产生回环匹配。 Step 1 : 相似图像检测 ORB_SLAM2 在进行相似图像检测时有两个判断的标准，一个单帧的相似性，另一个邻域多帧的相似性。单帧的相似性主要是根据图像帧之间的公共单词数量和相似度得分进行判断。邻域多帧相似性是通过累计当前帧与候选帧的共视帧之间所有相似度得分来进行判断，这么是为了保证选取的候选帧与当前帧之间有足够的共视约束，有利于后续以候选帧构建局部地图来求解当前帧的回环位姿。
 ORB_SLAM 中的单词数量阈值为最大公共单词数量 * 0.8，BoW 得分阈值为当前帧的共视关键帧中最低的相似度得分，邻域多帧相似性得分是累计得分的最大值 * 0.75 ， 详情建 Appendix KeyFrameDatabase::DetectLoopCandidates
-Step 2 : 组连续检测 组连续检测是为了防止触发误回环，他的原理是在更踪过程中的连续多帧都检测到了回环候选帧，并且这些回环候选这年都是在一个连续相邻的区域。一个有效的组连续检测结果如下图所示： 组: 与当前帧具有一级共视关系的关键帧集合为一组 组连续: 关键帧之间不是之间的共视关系，但是有共同的共视帧称为组连续，如图中 1和 2。
-2.2 sim3 位姿求解 Sim3Solver::ComputeSim3 sim3 几何验证主要是为了避免对纹理相似场景的误判，首先根据 BoW 在回环候选帧与当前前帧之间进行查找匹配特征点，如果匹配特征点足够(&gt;20)(ORBmatcher::SearchByBoW)，那么进行 sim3 位姿求解。对匹配关键帧对应的 3d 点分别使用旧位姿和 sim3 位姿进行反投影，统计允许误差范围内的内点数量(见 Sim3Solver::CheckInliers)，如果内点数达到了阈值则认为求解成功。 使用 sim3 位姿进行反投影查找更多的特征点 ORBmatcher::SearchBySim3，其具体操作时使用 sim3 位姿将地图点
-...</p>
+Step 2 : 组连续检测 组连续检测是为了防止触发误回环，他的原理是在更踪过程中的连续多帧都检测到了回环候选帧，并且这些回环候选这年都是在一个连续相邻的区域。一个有效的组连续检测结果如下图所示： ...</p>
   </div>
   <footer class="entry-footer"><span title='2024-03-07 15:04:23 +0000 UTC'>March 7, 2024</span></footer>
   <a class="entry-link" aria-label="post link to ORB_SLAM2 核心代码解析" href="https://zhouwuxiong.github.io/posts/orb_slam2/"></a>
+</article>
+
+<article class="post-entry"> 
+  <header class="entry-header">
+    <h2 class="entry-hint-parent">ORB_SLAM3 核心代码解析
+    </h2>
+  </header>
+  <div class="entry-content">
+    <p>1 VIO 联合初始化 视觉惯性初始化是为了给惯性变量一个良好的初值，这些变量包括重力方向、零偏、尺度等。首先 IMU 的零偏是不固定的，它会受到温度、硬件老化、电磁干扰等因素的影响，并且 IMU 的零偏对测量值的影响较大，所以一般在每次系统启动时都需要进行单独的初始化。在纯视觉初始化以第一帧图像的图像坐标系为原点， 而 IMU 输出的是角速度和加速度，当前 IMU 静止时任会受到重力加速度的影响，我们在进行速度积分运算时需要减掉重力的积分值。当 IMU 静止时我们可以很容易确定重力的方向，但是 SLAM 系统往往是即时启动，我们需要运动过程中估计重力方向。通过 IMU 估计得到重力方向后我们就可以将图像坐标系的Z轴和重力方向对齐，从而避免建出的地图倾斜。
+在IMU初始化阶段会进行三类优化：Visual-Only、Inertial-Only和Visual-Inertial联合 2 Step1 单目初始化 MonocularInitialization 单目初始化在 Tracking 中进行
+3 Step2 imu 初始化 InitializeIMU() imu 初始化子在单目初始化完成之后进行，会以较高的频率（4～10Hz）插入关键帧进行 IMU 的初始化，执行函数为 InitializeIMU() ，imu 初始化主要分为4各阶段，前三个阶段都使用InitializeIMU 进行图优化。
+为什么要进行高频率的插入，是因为关键帧之间的时间间隔比较短时，IMU 之间的预积分量的不确定性也较低，在 2s 内基本可以生成是十几个关键帧和地图点。同时在短时间内(2s内)，我们可以假定系统是是静止的，方便对重力方向进行初值估计。
+第一次阶段的执行 条件是(关键帧数量&gt;10 并且距离初始关键帧的时间&gt;1s) , InitializeIMU 首先计算了重力方向和视觉坐标系方向的相对旋转作为初值，需要注意的是这里假设了 1s 的系统是静止或匀速运动的，对运动方程做了简化，此时速度的增量完全由重力加速度产生，因此只需要计算速度增量与视觉坐标系的夹角 即可得重力方向矫正的旋转角(dirg)。 然后以视觉位姿作为观测，对预积分方城做图优化。 在进行图优化时我们主要需要考虑三个问题，优化量、约束(固定量)、残差、初值。 在 InertialOptimization 的优化问题中，优化量为重力方向，尺度，速度与偏置；固定量为视觉观测位姿，残差为预积分的 delta 量；初值，重力方向(dirg)，尺度(1.0)，速度(视觉里程计估计的速度)，ba和bg(0)。
+第二和和第三界阶段使用同样调用 InitializeIMU() 函数执行，只是调高了（ ba、bg） 的置信度（ PriorA、PriorG），可以理解为逐步精细的求解(ba、bg)。并且第二、第三阶段会在每次加入新的关键帧时都调用 InitializeIMU 进行初始化，而不是向第一阶段一样只调用一次。
+第四阶段为重力方向和尺度精修ScaleRefinement，具体做法是固定图优化中的其它顶点，只优化重力方向和尺度。这个阶段是在每次累积一定数量的关键帧后进行。 ...</p>
+  </div>
+  <footer class="entry-footer"><span title='2024-03-07 15:04:23 +0000 UTC'>March 7, 2024</span></footer>
+  <a class="entry-link" aria-label="post link to ORB_SLAM3 核心代码解析" href="https://zhouwuxiong.github.io/posts/orb_slam3/"></a>
 </article>
 
 <article class="post-entry"> 
@@ -255,21 +271,6 @@ Appendix:
   </div>
   <footer class="entry-footer"><span title='2024-03-07 15:04:23 +0000 UTC'>March 7, 2024</span></footer>
   <a class="entry-link" aria-label="post link to 图像特征点" href="https://zhouwuxiong.github.io/posts/feature_match/"></a>
-</article>
-
-<article class="post-entry"> 
-  <header class="entry-header">
-    <h2 class="entry-hint-parent">SLAM 基础
-    </h2>
-  </header>
-  <div class="entry-content">
-    <p>1 常见符号表示 2 SO(3)上的BCH近似公式 BCH公式给出了李代数上的小量加法与李群上小量乘法之间的关系（李代数加法 ⇔ 李群乘法），其线性近似公式广泛应用于各种函数的线性化。 在SO(3)中，某个旋转 $R$ 对应的李代数为 $\phi$，左乘一个微小旋转，记作 $\Delta{R}$，对应的李代数为 $\Delta\phi$，那么在李群上得到的结果就是 $\Delta RR$，而在李代数上，根据BCH近似，为 $J_l({\phi})^{-1}\Delta{\phi} &#43;{\phi}$ 合并后可以简单写成： $$\Delta{R}{R} = \exp(\Delta{\phi}^{\wedge})\exp({\phi}^{\wedge}) = \exp \left(({\phi} &#43; {J}_l({\phi})^{-1}\Delta{\phi})^{\wedge} \right)$$ 反过来，如果在李代数上进行加法，让一个 ${\phi}$加上小量 $\Delta{\phi}$，那么可以近似为李群上带左右雅克比矩阵的乘法： $$\exp(({\phi} &#43; \Delta{\phi})^{\wedge}) = \exp(({J}_l({\phi})\Delta{\phi})^\wedge) \exp({\phi}^\wedge)= \exp({\phi}^\wedge) \exp(({J}_r({\phi})\Delta{\phi})^\wedge) $$ 其中SO(3)的左雅克比矩阵为 $$ \begin{aligned} {J}_l(\theta{a}) &amp;= \frac{\sin\theta}{\theta}{I} &#43; (1-\frac{\sin\theta}{\theta}){a}{a}^T&#43;(\frac{1-\cos\theta}{\theta}){a}^{\wedge} \{J}^{-1}_l(\theta{a}) &amp;= \frac{\theta}{2}\cot\frac{\theta}{2}{I} &#43; (1-\frac{\theta}{2}\cot\frac{\theta}{2}){a}{a}^T-\frac{\theta}{2}{a}^{\wedge} \end{aligned} $$ 而SO(3)的右雅克比矩阵为 $$ {J}_r({\phi}) = {J}_l(-{\phi}) $$
-3 KF、EKF、ESKF KF 的状态和观测方程的递推是高斯分布的线性变换，融合结果则是两个高斯分布相乘得到一个新的高斯分布，卡尔曼增益则是系数 Site Unreachable
-KF、EKF、ESKF 的本质都是对高斯分布的线性变换。他们的区别在于高斯线性变换时的系数不同，KF 的线性系数是常数，EKF的线性系数是雅可比矩阵 KF 假设运动方程为: $$ x_{k&#43;1} = Ax_k &#43; u_k &#43; w_k, w \sim (\mu,\sigma^2) $$ 由于该公式为线性变换，所以$x_{K&#43;1}$ 也服从高斯分布。 $$ x_{k&#43;1} \sim (A\mu &#43; u_k ,A \sigma^2 A^T) $$ EKF 假设运动方程为: $$ x_{k&#43;1} = f(x_k) &#43; u_k &#43; w_k, w \sim (\mu,\sigma^2) $$ 其中$f(x)$ 表示非线性变换，将其在$x_k$进行一阶泰勒展开： $$ f(x) = f(x_k) &#43; J(x-x_k) $$ 所以下一时刻的$x_{k&#43;1}$ 的分布为 $$ x_{k&#43;1} \sim (J \mu &#43; u_k, J \sigma^2 J^T) $$ 其与KF 的区别在与 A 是常量，而 J 是与线性化点相关的变量。 ESKF ESKF 与 EKF 类似，只是 EKF 是对整个运动方程进行高斯过程，而 ESKF 只对噪声进行高斯过程，对于测量值（名义变量）则进行直接的递推。最终的结果由测量值的递推和噪声的预测值相加得到。
-...</p>
-  </div>
-  <footer class="entry-footer"><span title='2024-03-05 11:29:23 +0000 UTC'>March 5, 2024</span></footer>
-  <a class="entry-link" aria-label="post link to SLAM 基础" href="https://zhouwuxiong.github.io/posts/slam-%E5%9F%BA%E7%A1%80/"></a>
 </article>
 <footer class="page-footer">
   <nav class="pagination">
