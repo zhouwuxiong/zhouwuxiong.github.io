@@ -58,10 +58,11 @@ ORB_SLAM2 在进行相似图像检测时有两个判断的标准，一个单帧�
 &lt;p&gt;imu 初始化子在单目初始化完成之后进行，会以较高的频率（4～10Hz）插入关键帧进行 IMU 的初始化，执行函数为 &lt;code&gt;InitializeIMU()&lt;/code&gt; ，imu 初始化主要分为4各阶段，前三个阶段都使用&lt;code&gt;InitializeIMU&lt;/code&gt; 进行图优化。&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;为什么要进行高频率的插入，是因为关键帧之间的时间间隔比较短时，IMU 之间的预积分量的不确定性也较低，在 2s 内基本可以生成是十几个关键帧和地图点。同时在短时间内(2s内)，我们可以假定系统是是静止的，方便对重力方向进行初值估计。&lt;/p&gt;&lt;/blockquote&gt;
-&lt;p&gt;第一次阶段的执行 条件是(关键帧数量&amp;gt;10 并且距离初始关键帧的时间&amp;gt;1s) , &lt;code&gt;InitializeIMU&lt;/code&gt; 首先计算了重力方向和视觉坐标系方向的相对旋转作为初值，需要注意的是这里假设了 1s 的系统是静止或匀速运动的，对运动方程做了简化，此时速度的增量完全由重力加速度产生，因此只需要计算速度增量与视觉坐标系的夹角 即可得重力方向矫正的旋转角(dirg)。
-然后以视觉位姿作为观测，对预积分方城做图优化。 在进行图优化时我们主要需要考虑三个问题，优化量、约束(固定量)、残差、初值。 在 &lt;code&gt;InertialOptimization&lt;/code&gt; 的优化问题中，优化量为重力方向，尺度，速度与偏置；固定量为视觉观测位姿，残差为预积分的 delta 量；初值，重力方向(dirg)，尺度(1.0)，速度(视觉里程计估计的速度)，ba和bg(0)。&lt;/p&gt;
+&lt;p&gt;第一次阶段的执行 条件是(关键帧数量&amp;gt;10 并且距离初始关键帧的时间&amp;gt;1s) , &lt;code&gt;InitializeIMU&lt;/code&gt; 首先计算了重力方向和视觉坐标系方向的相对旋转作为初值，需要注意的是这里假设了 1s 的系统是静止或匀速运动的，对运动方程做了简化，此时速度的增量完全由重力加速度产生，因此只需要计算速度增量与视觉坐标系的夹角 即可得重力方向矫正的旋转角(dirg)。然后以视觉位姿作为观测，对预积分方做图优化&lt;code&gt;InertialOptimization&lt;/code&gt;。&lt;/p&gt;
 &lt;p&gt;第二和和第三界阶段使用同样调用 &lt;code&gt;InitializeIMU()&lt;/code&gt; 函数执行，只是调高了（ ba、bg） 的置信度（ PriorA、PriorG），可以理解为逐步精细的求解(ba、bg)。并且第二、第三阶段会在每次加入新的关键帧时都调用 &lt;code&gt;InitializeIMU&lt;/code&gt; 进行初始化，而不是向第一阶段一样只调用一次。&lt;/p&gt;
-&lt;p&gt;第四阶段为重力方向和尺度精修&lt;code&gt;ScaleRefinement&lt;/code&gt;，具体做法是固定图优化中的其它顶点，只优化重力方向和尺度。这个阶段是在每次累积一定数量的关键帧后进行。
+&lt;p&gt;第四阶段为重力方向和尺度精修&lt;code&gt;ScaleRefinement&lt;/code&gt;，具体做法是固定图优化中的其它顶点，只优化重力方向和尺度。这个阶段是在每次累积一定数量的关键帧后进行。&lt;/p&gt;
+&lt;h3 id=&#34;31-inertialoptimization&#34;&gt;3.1 &lt;code&gt;InertialOptimization&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;在进行图优化时我们主要需要考虑三个问题，优化量、约束(固定量)、残差、初值。 在 &lt;code&gt;InertialOptimization&lt;/code&gt; 的优化问题中，优化量为重力方向，尺度，速度与偏置；固定量为视觉观测位姿，残差为预积分的 delta 量；初值，重力方向(dirg)，尺度(1.0)，速度(视觉里程计估计的速度)，ba和bg(0)。
 &lt;img alt=&#34;1-ORB_SLAM3.png&#34; loading=&#34;lazy&#34; src=&#34;1-ORB_SLAM3.png&#34;&gt;&lt;/p&gt;</description>
     </item>
     <item>
